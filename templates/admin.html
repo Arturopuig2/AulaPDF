@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+
+    <!-- Upload Section -->
+    <div style="flex: 1; min-width: 300px;">
+        <div class="card">
+            <h3>Subir Nuevo PDF</h3>
+            <form action="/admin/upload" method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Título del Documento</label>
+                    <input type="text" name="title" required placeholder="Ej: Tema 1 - Álgebra">
+                </div>
+
+                <div class="form-group">
+                    <label>Asignatura</label>
+                    <select name="subject" required>
+                        {% for s in subjects %}
+                        <option value="{{ s }}">{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Curso</label>
+                    <select name="grade" required>
+                        {% for g in grades %}
+                        <option value="{{ g }}">{{ g }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Archivo PDF</label>
+                    <input type="file" name="file" accept="application/pdf" required>
+                </div>
+
+                <button type="submit" class="btn" style="width: 100%;">Subir y Generar Código</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- List Section -->
+    <div style="flex: 2; min-width: 400px;">
+        <div class="card">
+            <h3>Documentos Activos</h3>
+            {% if not pdfs %}
+            <p class="text-muted">Aún no has subido ningún documento.</p>
+            {% else %}
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+                        <th style="padding: 0.5rem;">Título</th>
+                        <th style="padding: 0.5rem;">Filtros</th>
+                        <th style="padding: 0.5rem;">Código Acceso</th>
+                        <th style="padding: 0.5rem;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pdf in pdfs %}
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 0.8rem 0.5rem;">{{ pdf.title }}</td>
+                        <td style="padding: 0.8rem 0.5rem;">
+                            <small style="display: block;">{{ pdf.subject }}</small>
+                            <small style="display: block; color: var(--text-muted);">{{ pdf.grade }}</small>
+                        </td>
+                        <td style="padding: 0.8rem 0.5rem;">
+                            {% for code in pdf.access_codes %}
+                            <code
+                                style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: var(--primary);">{{ code.code }}</code>
+                            {% endfor %}
+                        </td>
+                        <td style="padding: 0.8rem 0.5rem;">
+                            <form action="/admin/delete/{{ pdf.id }}" method="post"
+                                onsubmit="return confirm('¿Seguro que quieres borrar este PDF?');">
+                                <button type="submit"
+                                    style="color: #ef4444; background: none; border: none; cursor: pointer; text-decoration: underline;">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

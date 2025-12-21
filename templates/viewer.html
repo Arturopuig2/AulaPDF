@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .pdf-page {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+</style>
+
+<div class="card" style="max-width: 1000px; margin: 0 auto; text-align: center;">
+    <div style="display: flex; justify-content: center; align-items: baseline; gap: 1rem; margin-bottom: 0.5rem;">
+        <h2 style="margin: 0; font-weight: normal;">{{ pdf.title }}</h2>
+    </div>
+
+    <!-- Custom PDF.js Viewer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
+    <!-- Unified Viewer Card -->
+    <div
+        style="max-width: 1000px; margin: 2rem auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+
+        <!-- PDF Container -->
+        <div id="pdf-container"
+            style="width: 100%; height: 800px; overflow-y: auto; background: #525659; padding: 2rem 0; display: flex; flex-direction: column; align-items: center;"
+            oncontextmenu="return false;">
+            <p id="loading-text" style="color: white; text-align: center; margin-top: 2rem;">Cargando documento...</p>
+        </div>
+
+        <!-- Controls Toolbar -->
+        <div
+            style="background: #2c3e50; color: white; padding: 0.75rem; display: flex; gap: 1rem; justify-content: center; align-items: center; border-top: 1px solid #34495e;">
+
+            <!-- Zoom Controls -->
+            <button onclick="changeZoom(0.2)" class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px; font-weight: bold;">+</button>
+            <span id="zoom-level" style="font-family: monospace; font-size: 1rem; min-width: 60px;">100%</span>
+            <button onclick="changeZoom(-0.2)" class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px; font-weight: bold;">-</button>
+
+            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 0.5rem;"></div>
+
+            <!-- Page Indicator -->
+            <span id="page-indicator"
+                style="font-family: monospace; font-size: 1rem; min-width: 80px; text-align: center;">-- / --</span>
+
+            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 0.5rem;"></div>
+
+            <!-- Double Page Toggle -->
+            <button onclick="toggleDoublePage()" id="btn-double" class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px;">Doble Página</button>
+
+            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 0.5rem;"></div>
+
+            <!-- Fullscreen -->
+            <button onclick="toggleFullscreen()" class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px;">Pantalla Completa</button>
+        </div>
+    </div>
+
+    <!-- Download Section -->
+    <div style="margin: 2rem 0; padding: 2rem; background: #f1f5f9; border-radius: 8px;">
+        <label for="code">Introduce el Código de Acceso para descargar:</label>
+        <input type="text" id="access_code" placeholder="Ej: PDF12345ABC"
+            style="text-align: center; font-family: monospace; letter-spacing: 2px; font-size: 1.2rem; width: 80%; margin: 1rem auto; text-transform: uppercase;">
+
+        <button onclick="downloadFileConfirm()" class="btn" style="width: 80%; font-size: 1.1rem;">Descargar
+            PDF</button>
+        <p id="error-msg" style="color: #ef4444; margin-top: 1rem; display: none;"></p>
+    </div>
+
+    <a href="/" style="color: var(--text-muted); text-decoration: none;">&larr; Volver al listado</a>
+</div>
+
+<script>
+    const url = '/pdf/{{ pdf.id }}/inline';
+    const container = document.getElementById('pdf-container');
+    const loadingText = document.getElementById('loading-text');
+    const zoomLevelDisplay = document.getElementById('zoom-level');
+    const pageIndicator = document.getElementById('page-indicator');
+    const btnDouble = document.getElementById('btn-double');
+
+    let pdfDoc = null;
+    let currentScale = 1.0;
+    let isRendering = false;
+    let isDoublePage = false;
+    let pageObserver = null;
+    let currentVisiblePage = 1;
+
+    function initPageObserver() {
+        if (pageObserver) pageObserver.disconnect();
+
+        const options = {
+            root: container,
+            rootMargin: '0px',
+            threshold: 0.1
+        };
+
+        pageObserver = new IntersectionObserver((entries) => {
+            const visiblePages = entries
+                .filter(entry => entry.isIntersecting)
+                .map(entry => parseInt(entry.target.dataset.pageNumber))
+                .sort((a, b) => a - b);
+
+            if (visiblePages.length > 0) {
+                currentVisiblePage = visiblePages[0];
+                const totalPages = pdfDoc ? pdfDoc.numPages : '--';
+                if (pageIndicator) pageIndicator.textContent = `${currentVisiblePage} / ${totalPages}`;
+            }
+        }, options);
+    }
+
+    async function renderPageToCanvas(pageNum, scale) {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: scale });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        canvas.className = 'pdf-page';
+        canvas.dataset.pageNumber = pageNum;
+
+        const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+        };
+        await page.render(renderContext).promise;
+        return canvas;
+    }
+
+    async function renderPDF(scale) {
+        if (!pdfDoc) return;
+        isRendering = true;
+
+        // Save target page before any changes
+        const targetPage = currentVisiblePage;
+
+        currentScale = scale;
+        if (zoomLevelDisplay) zoomLevelDisplay.textContent = `${Math.round(currentScale * 100)}%`;
+
+        // BUFFERING: Render to off-screen fragment
+        const fragment = document.createDocumentFragment();
+
+        if (isDoublePage) {
+            // COVER
+            if (pdfDoc.numPages >= 1) {
+                const cover = await renderPageToCanvas(1, scale);
+                fragment.appendChild(cover);
+            }
+
+            // PAIRS
+            for (let pageNum = 2; pageNum <= pdfDoc.numPages; pageNum += 2) {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'center';
+                row.style.gap = '20px';
+                row.style.marginBottom = '20px';
+                row.style.width = '100%';
+
+                const canvas1 = await renderPageToCanvas(pageNum, scale);
+                canvas1.style.marginBottom = '0';
+                row.appendChild(canvas1);
+
+                if (pageNum + 1 <= pdfDoc.numPages) {
+                    const canvas2 = await renderPageToCanvas(pageNum + 1, scale);
+                    canvas2.style.marginBottom = '0';
+                    row.appendChild(canvas2);
+                }
+                fragment.appendChild(row);
+            }
+        } else {
+            // SINGLE
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                const canvas = await renderPageToCanvas(pageNum, scale);
+                fragment.appendChild(canvas);
+            }
+        }
+
+        // SWAP CONTENT AT ONCE (Prevents "Jump to Top")
+        container.innerHTML = '';
+        container.appendChild(fragment);
+
+        // RE-ATTACH OBSERVERS
+        initPageObserver();
+        const allCanvases = container.querySelectorAll('canvas.pdf-page');
+        allCanvases.forEach(canvas => pageObserver.observe(canvas));
+
+        // RESTORE SCROLL
+        const targetElement = container.querySelector(`canvas[data-page-number="${targetPage}"]`);
+        if (targetElement) {
+            targetElement.scrollIntoView({ block: 'start' });
+        }
+
+        isRendering = false;
+    }
+
+    async function initPDF() {
+        try {
+            const loadingTask = pdfjsLib.getDocument(url);
+            pdfDoc = await loadingTask.promise;
+            if (loadingText) loadingText.remove();
+
+            renderPDF(currentScale);
+        } catch (error) {
+            console.error('Error loading PDF:', error);
+            container.innerHTML = '<p style="color: white;">Error al cargar el documento.</p>';
+        }
+    }
+
+    function changeZoom(delta) {
+        if (isRendering) return;
+        const newScale = currentScale + delta;
+        if (newScale >= 0.25 && newScale <= 3.0) {
+            renderPDF(newScale);
+        }
+    }
+
+    function toggleDoublePage() {
+        if (isRendering) return;
+        isDoublePage = !isDoublePage;
+        if (isDoublePage) {
+            btnDouble.style.background = 'rgba(255,255,255,0.2)';
+        } else {
+            btnDouble.style.background = 'transparent';
+        }
+        renderPDF(currentScale);
+    }
+
+    function toggleFullscreen() {
+        const wrapper = container.parentElement;
+        if (!document.fullscreenElement) {
+            wrapper.requestFullscreen().catch(err => {
+                alert(`Error al entrar en pantalla completa: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    initPDF();
+
+    async function downloadFileConfirm() {
+        const code = document.getElementById('access_code').value;
+        const errorMsg = document.getElementById('error-msg');
+
+        if (!code) {
+            errorMsg.textContent = "Por favor, introduce un código.";
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('access_code', code);
+
+        try {
+            const response = await fetch('/pdf/{{ pdf.id }}/download', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "{{ pdf.filename }}";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                errorMsg.style.display = 'none';
+            } else {
+                const err = await response.json();
+                errorMsg.textContent = err.detail || "Código incorrecto.";
+                errorMsg.style.display = 'block';
+            }
+        } catch (e) {
+            errorMsg.textContent = "Error de conexión.";
+            errorMsg.style.display = 'block';
+        }
+    }
+</script>
+{% endblock %}
