@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 
+{% block navbar_extra %}
+<a href="javascript:void(0);" onclick="showDownloadForm()" class="btn btn-outline" style="margin-right: 0.5rem;">
+    Descargar
+</a>
+{% endblock %}
 {% block content %}
 <style>
     .pdf-page {
@@ -9,9 +14,40 @@
         margin-bottom: 20px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
+
+    /* Fullscreen overrides */
+    :fullscreen,
+    ::backdrop {
+        background-color: #525659;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Safari support */
+    :-webkit-full-screen {
+        background-color: #525659;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        display: flex;
+        flex-direction: column;
+    }
+
+    :fullscreen #pdf-container,
+    :-webkit-full-screen #pdf-container {
+        height: auto !important;
+        flex: 1;
+    }
 </style>
 
-<div class="card" style="max-width: 1000px; margin: 0 auto; text-align: center;">
+<div style="max-width: 1000px; margin: 0 auto; text-align: center;">
     <div style="display: flex; justify-content: center; align-items: baseline; gap: 1rem; margin-bottom: 0.5rem;">
         <h2 style="margin: 0; font-weight: normal;">{{ pdf.title }}</h2>
     </div>
@@ -22,58 +58,64 @@
 
     <!-- Unified Viewer Card -->
     <div
-        style="max-width: 1000px; margin: 2rem auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+        style="max-width: 500px; margin: 2rem auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
 
         <!-- PDF Container -->
         <div id="pdf-container"
-            style="width: 100%; height: 800px; overflow-y: auto; background: #525659; padding: 2rem 0; display: flex; flex-direction: column; align-items: center;"
+            style="width: 100%; height: 500px; overflow-y: auto; background: #525659; padding: 2rem 0; display: flex; flex-direction: column; align-items: center;"
             oncontextmenu="return false;">
             <p id="loading-text" style="color: white; text-align: center; margin-top: 2rem;">Cargando documento...</p>
         </div>
 
         <!-- Controls Toolbar -->
         <div
-            style="background: #2c3e50; color: white; padding: 0.75rem; display: flex; gap: 1rem; justify-content: center; align-items: center; border-top: 1px solid #34495e;">
+            style="background: #2c3e50; color: white; padding: 0.5rem; display: flex; gap: 0.5rem; justify-content: center; align-items: center; border-top: 1px solid #34495e; flex-wrap: wrap;">
 
             <!-- Zoom Controls -->
-            <button onclick="changeZoom(0.2)" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px; font-weight: bold;">+</button>
-            <span id="zoom-level" style="font-family: monospace; font-size: 1rem; min-width: 60px;">100%</span>
-            <button onclick="changeZoom(-0.2)" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px; font-weight: bold;">-</button>
+            <button onclick="changeZoom(-0.12)" class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 8px; font-weight: bold; min-width: 32px;"
+                title="Reducir">-</button>
+            <span id="zoom-level"
+                style="font-family: monospace; font-size: 0.9rem; min-width: 50px; text-align: center;">100%</span>
+            <button onclick="changeZoom(0.12)" class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 8px; font-weight: bold; min-width: 32px;"
+                title="Ampliar">+</button>
 
-            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 0.5rem;"></div>
+            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 0.2rem;"></div>
 
             <!-- Page Indicator -->
             <span id="page-indicator"
-                style="font-family: monospace; font-size: 1rem; min-width: 80px; text-align: center;">-- / --</span>
+                style="font-family: monospace; font-size: 0.9rem; min-width: 60px; text-align: center;">-- / --</span>
 
-            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 0.5rem;"></div>
+            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 0.2rem;"></div>
 
             <!-- Double Page Toggle -->
             <button onclick="toggleDoublePage()" id="btn-double" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px;">Doble Página</button>
-
-            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 0.5rem;"></div>
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 6px; display: flex; align-items: center;"
+                title="Doble Página">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+            </button>
 
             <!-- Fullscreen -->
-            <button onclick="toggleFullscreen()" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 12px;">Pantalla Completa</button>
+            <button onclick="toggleFullscreen()" id="btn-fullscreen" class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.3); padding: 6px; display: flex; align-items: center;"
+                title="Pantalla Completa">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                </svg>
+            </button>
         </div>
     </div>
 
-    <!-- Download Section -->
-    <div style="margin: 2rem 0; padding: 2rem; background: #f1f5f9; border-radius: 8px;">
-        <label for="code">Introduce el Código de Acceso para descargar:</label>
-        <input type="text" id="access_code" placeholder="Ej: PDF12345ABC"
-            style="text-align: center; font-family: monospace; letter-spacing: 2px; font-size: 1.2rem; width: 80%; margin: 1rem auto; text-transform: uppercase;">
 
-        <button onclick="downloadFileConfirm()" class="btn" style="width: 80%; font-size: 1.1rem;">Descargar
-            PDF</button>
-        <p id="error-msg" style="color: #ef4444; margin-top: 1rem; display: none;"></p>
-    </div>
 
-    <a href="/" style="color: var(--text-muted); text-decoration: none;">&larr; Volver al listado</a>
+
 </div>
 
 <script>
@@ -85,7 +127,7 @@
     const btnDouble = document.getElementById('btn-double');
 
     let pdfDoc = null;
-    let currentScale = 1.0;
+    let currentScale = 0.6;
     let isRendering = false;
     let isDoublePage = false;
     let pageObserver = null;
@@ -140,7 +182,11 @@
         const targetPage = currentVisiblePage;
 
         currentScale = scale;
-        if (zoomLevelDisplay) zoomLevelDisplay.textContent = `${Math.round(currentScale * 100)}%`;
+        const BASE_SCALE = 0.6;
+        if (zoomLevelDisplay) {
+            const percentage = Math.round((currentScale / BASE_SCALE) * 100);
+            zoomLevelDisplay.textContent = `${percentage}%`;
+        }
 
         // BUFFERING: Render to off-screen fragment
         const fragment = document.createDocumentFragment();
@@ -222,10 +268,16 @@
     function toggleDoublePage() {
         if (isRendering) return;
         isDoublePage = !isDoublePage;
+
+        const singlePageIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`;
+        const doublePageIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`;
+
         if (isDoublePage) {
-            btnDouble.style.background = 'rgba(255,255,255,0.2)';
+            btnDouble.innerHTML = singlePageIcon;
+            btnDouble.title = "Vista Página Simple";
         } else {
-            btnDouble.style.background = 'transparent';
+            btnDouble.innerHTML = doublePageIcon;
+            btnDouble.title = "Vista Doble Página";
         }
         renderPDF(currentScale);
     }
@@ -241,17 +293,32 @@
         }
     }
 
+    function showDownloadForm() {
+        const code = prompt("Introduce el Código de Acceso:");
+        if (code) {
+            downloadFileConfirm(code);
+        }
+    }
+
+    // Fullscreen Event Listener
+    document.addEventListener('fullscreenchange', () => {
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const expandIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>`;
+        const compressIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>`;
+
+        if (document.fullscreenElement) {
+            btnFullscreen.innerHTML = compressIcon;
+            btnFullscreen.title = "Salir de Pantalla Completa";
+        } else {
+            btnFullscreen.innerHTML = expandIcon;
+            btnFullscreen.title = "Pantalla Completa";
+        }
+    });
+
     initPDF();
 
-    async function downloadFileConfirm() {
-        const code = document.getElementById('access_code').value;
-        const errorMsg = document.getElementById('error-msg');
-
-        if (!code) {
-            errorMsg.textContent = "Por favor, introduce un código.";
-            errorMsg.style.display = 'block';
-            return;
-        }
+    async function downloadFileConfirm(code) {
+        if (!code) return;
 
         const formData = new FormData();
         formData.append('access_code', code);
@@ -271,15 +338,12 @@
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-                errorMsg.style.display = 'none';
             } else {
                 const err = await response.json();
-                errorMsg.textContent = err.detail || "Código incorrecto.";
-                errorMsg.style.display = 'block';
+                alert(err.detail || "Código incorrecto.");
             }
         } catch (e) {
-            errorMsg.textContent = "Error de conexión.";
-            errorMsg.style.display = 'block';
+            alert("Error de conexión.");
         }
     }
 </script>

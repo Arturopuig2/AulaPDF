@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Reuse Aula CL Login Style */
+    .register-card {
+        background: white;
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        /* Soft premium shadow */
+        max-width: 400px;
+        margin: 4rem auto;
+        text-align: center;
+        border: 1px solid rgba(0, 0, 0, 0.02);
+    }
+
+    .register-title {
+        color: #1e293b;
+        font-weight: 800;
+        font-size: 1.8rem;
+        margin-bottom: 2rem;
+        letter-spacing: -0.5px;
+    }
+
+    .form-group {
+        text-align: left;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        display: block;
+        font-size: 0.95rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.2s;
+        box-sizing: border-box;
+        outline: none;
+    }
+
+    .form-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #3b82f6 0%, #d946ef 100%);
+        color: white;
+        border: none;
+        padding: 0.9rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        width: 100%;
+        transition: opacity 0.2s, transform 0.1s;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn-gradient:hover {
+        opacity: 0.95;
+        transform: translateY(-1px);
+    }
+
+    .bottom-links {
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+
+    .bottom-links a {
+        color: #3b82f6;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-block;
+        margin-top: 5px;
+    }
+
+    .bottom-links a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="register-card">
+    <h1 class="register-title">Crear Cuenta</h1>
+
+    {% if error %}
+    <div
+        style="background: #fef2f2; color: #b91c1c; padding: 0.8rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; text-align: left; border: 1px solid #fecaca;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form action="/register" method="post">
+        <div class="form-group">
+            <label class="form-label">Correo Electrónico</label>
+            <input type="email" name="username" class="form-input" required autofocus placeholder="Introduzca su email">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Repetir Correo Electrónico</label>
+            <input type="email" name="confirm_username" class="form-input" required placeholder="Repita su email">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <input type="password" name="password" class="form-input" required
+                placeholder="Elige una contraseña segura">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Confirmar Contraseña</label>
+            <input type="password" name="confirm_password" class="form-input" required
+                placeholder="Repite la contraseña">
+        </div>
+
+        <button type="submit" class="btn-gradient">Registrarse</button>
+    </form>
+
+    <div class="bottom-links">
+        ¿Ya tienes cuenta? <a href="/login">Inicia Sesión</a>
+    </div>
+</div>
+{% endblock %}

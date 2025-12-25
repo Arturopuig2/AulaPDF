@@ -1,26 +1,161 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card" style="max-width: 400px; margin: 4rem auto;">
-    <h2 style="text-align: center;">Acceso Profesorados</h2>
+<style>
+    /* Aula CL Login Style Overrides */
+    .login-card {
+        background: white;
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        /* Soft premium shadow */
+        max-width: 400px;
+        margin: 4rem auto;
+        text-align: center;
+        border: 1px solid rgba(0, 0, 0, 0.02);
+    }
+
+    .login-title {
+        color: #1e293b;
+        font-weight: 800;
+        font-size: 1.8rem;
+        margin-bottom: 2rem;
+        letter-spacing: -0.5px;
+    }
+
+    .form-group {
+        text-align: left;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        display: block;
+        font-size: 0.95rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.2s;
+        box-sizing: border-box;
+        /* Fix padding issue */
+        outline: none;
+    }
+
+    .form-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #3b82f6 0%, #d946ef 100%);
+        /* Blue to Pink/Purple */
+        color: white;
+        border: none;
+        padding: 0.9rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        width: 100%;
+        transition: opacity 0.2s, transform 0.1s;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn-gradient:hover {
+        opacity: 0.95;
+        transform: translateY(-1px);
+    }
+
+    .divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 2rem 0;
+        position: relative;
+    }
+
+    .student-section {
+        margin-top: 1.5rem;
+    }
+
+    .student-title {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .btn-student {
+        background: white;
+        border: 2px solid #2563eb;
+        color: #2563eb;
+        padding: 0.8rem;
+        width: 100%;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.1s;
+        text-decoration: none;
+        display: inline-block;
+        box-sizing: border-box;
+    }
+
+    .btn-student:hover {
+        background: #eff6ff;
+    }
+
+    .bottom-links {
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+
+    .bottom-links a {
+        color: #3b82f6;
+        text-decoration: none;
+        font-weight: 500;
+        display: block;
+        margin-top: 5px;
+    }
+
+    .bottom-links a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="login-card">
+    <h1 class="login-title">Iniciar Sesión</h1>
 
     {% if error %}
     <div
-        style="background: #fee2e2; color: #b91c1c; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem;">
+        style="background: #fef2f2; color: #b91c1c; padding: 0.8rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; text-align: left; border: 1px solid #fecaca;">
         {{ error }}
     </div>
     {% endif %}
 
     <form action="/login" method="post">
         <div class="form-group">
-            <label>Usuario</label>
-            <input type="text" name="username" required autofocus>
+            <label class="form-label">Correo Electrónico / Usuario</label>
+            <input type="text" name="username" class="form-input" required autofocus>
         </div>
         <div class="form-group">
-            <label>Contraseña</label>
-            <input type="password" name="password" required>
+            <label class="form-label">Contraseña</label>
+            <input type="password" name="password" class="form-input" required>
         </div>
-        <button type="submit" class="btn" style="width: 100%;">Entrar</button>
+
+        <button type="submit" class="btn-gradient">Entrar</button>
     </form>
+
+    <div class="bottom-links">
+        ¿No tienes cuenta? <a href="/register" style="display:inline;">Regístrate</a>
+        <br>
+        <a href="#" onclick="alert('Contacta con soporte.'); return false;">¿Olvidaste tu contraseña?</a>
+    </div>
 </div>
 {% endblock %}

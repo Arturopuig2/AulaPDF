@@ -34,16 +34,13 @@
     {% endif %}
 
     {% for pdf in pdfs %}
-    <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="card"
+        style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; margin-bottom: 0.5rem;">
         <div>
-            <h3 style="margin: 0 0 0.5rem 0;">{{ pdf.title }}</h3>
-            <span
-                style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 0.5rem;">{{
-                pdf.subject }}</span>
-            <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 0.8em;">{{ pdf.grade
-                }}</span>
+            <h3 style="margin: 0; font-size: 1.1rem;">{{ pdf.title }}</h3>
         </div>
-        <a href="/pdf/{{ pdf.id }}" class="btn">Ver Documento</a>
+        <a href="/pdf/{{ pdf.id }}" class="btn"
+            style="padding: 0.3rem 0.8rem; font-size: 0.85rem; font-weight: 400;">Ver Cuaderno</a>
     </div>
     {% endfor %}
 </div>

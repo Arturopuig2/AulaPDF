@@ -33,7 +33,12 @@
 
                 <div class="form-group">
                     <label>Archivo PDF</label>
-                    <input type="file" name="file" accept="application/pdf" required>
+                    <label class="btn btn-outline"
+                        style="display: block; text-align: center; cursor: pointer; border-style: dashed;">
+                        <span id="file-label">Seleccionar PDF...</span>
+                        <input type="file" name="file" accept="application/pdf" required style="display: none;"
+                            onchange="document.getElementById('file-label').textContent = this.files[0] ? this.files[0].name : 'Seleccionar PDF...'">
+                    </label>
                 </div>
 
                 <button type="submit" class="btn" style="width: 100%;">Subir y Generar Código</button>
