@@ -10,3 +10,4 @@ pydantic
 requests
 python-jose
 uuid-utils
+itsdangerous
