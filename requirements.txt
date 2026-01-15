@@ -5,7 +5,7 @@ jinja2
 python-multipart
 python-dotenv
 psycopg2-binary
-bcrypt
+bcrypt==3.2.2
 pydantic
 requests
 python-jose
