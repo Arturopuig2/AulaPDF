@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 
 {% block navbar_extra %}
+{% if request.session.get("is_admin") %}
 <a href="javascript:void(0);" onclick="showDownloadForm()" class="btn btn-outline" style="margin-right: 0.5rem;">
     Descargar
 </a>
+{% endif %}
 {% endblock %}
 {% block content %}
 <style>

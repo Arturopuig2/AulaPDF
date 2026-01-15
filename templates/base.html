@@ -45,6 +45,8 @@
             max-width: 1000px;
             margin: 2rem auto;
             padding: 0 1rem;
+            position: relative;
+            z-index: 10;
         }
 
         .card {
@@ -136,8 +138,10 @@
         </div>
         <div>
             {% if request.session.get("user_id") %}
+            {% if request.session.get("is_admin") %}
             {% if not request.url.path.startswith('/admin') %}
             <a href="/admin" class="btn btn-outline" style="margin-right: 0.5rem">Admin</a>
+            {% endif %}
             {% endif %}
             {% block navbar_extra %}{% endblock %}
             <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">Cerrar</a>
@@ -153,12 +157,7 @@
     </div>
     <script>
         function closeApp() {
-            // Attempt to close, then fallback to logout
-            try {
-                window.close();
-            } catch (e) {
-                console.log("Window close blocked");
-            }
+            // Just logout, do not attempt window.close() as it causes issues
             window.location.href = "/logout";
         }
     </script>

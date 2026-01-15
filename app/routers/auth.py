@@ -41,6 +41,7 @@ async def login(
     # 3. Success - Reset limits & Set Session
     auth.reset_rate_limit(db, ip)
     request.session["user_id"] = user.id
+    request.session["is_admin"] = user.is_admin
     return RedirectResponse(url="/", status_code=303)
 
 @router.get("/logout")
