@@ -22,6 +22,9 @@
             padding: 0;
             background-color: var(--bg-body);
             color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
         .navbar {
@@ -31,7 +34,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
 
         .logo {
@@ -43,6 +48,7 @@
 
         .container {
             max-width: 1000px;
+            width: 100%;
             margin: 2rem auto;
             padding: 0 1rem;
             position: relative;
@@ -118,6 +124,16 @@
         .filter-item {
             flex: 1;
         }
+
+        .footer {
+            background: var(--bg-card);
+            border-top: 2px solid var(--border);
+            padding: 3rem 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: auto;
+        }
     </style>
 </head>
 
@@ -137,6 +153,10 @@
             {% endif %}
         </div>
         <div>
+            {% if request.url.path != '/login' and request.url.path != '/register' %}
+            <a href="https://shop.itbook.es/" target="_blank" class="btn btn-outline" style="margin-right: 0.5rem">Ir a
+                la tienda</a>
+            {% endif %}
             {% if request.session.get("user_id") %}
             {% if request.session.get("is_admin") %}
             {% if not request.url.path.startswith('/admin') %}
@@ -161,6 +181,9 @@
             window.location.href = "/logout";
         }
     </script>
+    <footer class="footer">
+        Editorial Aula. C/ Hierros, 14D. 46022. València. info@editorialaula.es. Teléfono: 669141263
+    </footer>
 </body>
 
 </html>

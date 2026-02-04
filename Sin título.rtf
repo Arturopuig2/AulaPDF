@@ -1,0 +1,164 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2865
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 .SFNS-Regular;\f1\fnil\fcharset0 .SFNS-Bold;\f2\fnil\fcharset0 .SFNS-Semibold;
+\f3\fnil\fcharset0 HelveticaNeue-Bold;\f4\fnil\fcharset0 .AppleSystemUIFontMonospaced-Regular;\f5\froman\fcharset0 TimesNewRomanPSMT;
+}
+{\colortbl;\red255\green255\blue255;\red14\green14\blue14;}
+{\*\expandedcolortbl;;\cssrgb\c6700\c6700\c6700;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww19680\viewh14060\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\fs36 \cf2 Act\'faa como un ingeniero senior full-stack.\
+\
+\
+Implementa la funcionalidad de 
+\f1\b sub-usuarios
+\f0\b0  con licencias y login por c\'f3digo.\
+\
+
+\f1\b Requisitos funcionales\
+
+\f0\b0 \
+1) Sub-usuarios (solo usuario principal autenticado)\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	En el panel del usuario principal a\'f1ade bot\'f3n \'93A\'f1adir sub-usuario\'94.\
+	\'95	Al crear sub-usuario:\
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Queda asociado al usuario principal.\
+	\'95	Nace con estado acceso limitado (solo primera lectura).\
+	\'95	Al crear sub-usuario se solicita nombre y licencia.\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	El usuario principal puede listar sus sub-usuarios.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 2) Licencias por sub-usuario\
+\
+- El usuario  puede introducir una licencia nueva por sub-usuario para desbloquear todas las lecturas en ese sub-usario.\
+\
+- Cada sub-usuario tambi\'e9n puede introducir una licencia nueva para desbloquear todas las lecturas.\
+\
+- Una licencia no puede reutilizarse en otro sub-usuario.\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Al activar una licencia:\
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	se vincula licencia \uc0\u8596  sub-usuario\
+	\'95	el sub-usuario pasa a acceso completo\
+	\'95	se genera un c\'f3digo \'fanico (ver secci\'f3n de seguridad)\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 3) Login del sub-usuario SOLO con c\'f3digo\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	El sub-usuario inicia sesi\'f3n \'fanicamente con su c\'f3digo \'fanico (sin email/contrase\'f1a).\
+	\'95	Tras login, accede a su panel de lecturas.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f2\b \cf2 C\'f3digo \'fanico (login del sub-usuario) + Seguridad
+\f0\b0 \
+\
+
+\f2\b Formato
+\f0\b0 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	El c\'f3digo \'fanico ser\'e1 de 
+\f3\b 12 caracteres
+\f0\b0 .\
+	\'95	Los 
+\f3\b 2 primeros
+\f0\b0  son 
+\f4 CL
+\f0 , el siguiente ser\'e1 C si desbloquea los contenidos de lengua castellana, V si desbloquea los contenidos de valenciano o E si desbloquea los contenidos de English seguido de 
+\f3\b 6 n\'fameros
+\f0\b0  (
+\f4 0\'969
+\f0 ) y 
+\f3\b 3 letras may\'fasculas
+\f0\b0  (
+\f4 A\'96Z
+\f0 ). No incluyas la letra i, ni la letra L, ni la letra O.\
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Ejemplo: 
+\f4 CLC482901QTR
+\f0 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Debe ser 
+\f3\b \'fanico
+\f0\b0  (si hay colisi\'f3n, regenerar).\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f2\b \cf2 Medidas de seguridad obligatorias
+\f0\b0 \
+\pard\tqr\tx260\tx420\li420\fi-420\sl324\slmult1\sb240\partightenfactor0
+
+\f5 \cf2 	1.	
+\f3\b Generaci\'f3n criptogr\'e1fica segura
+\f0\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Implementar con CSPRNG en Python (p. ej. 
+\f4 secrets
+\f0 ), 
+\f3\b prohibido
+\f0\b0  
+\f4 random
+\f0 , timestamps o patrones predecibles.\
+\pard\tqr\tx260\tx420\li420\fi-420\sl324\slmult1\sb240\partightenfactor0
+
+\f5 \cf2 	2.	
+\f3\b Rate limiting (doble) en el endpoint de login por c\'f3digo
+\f0\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Limitar 
+\f3\b por IP
+\f0\b0  y 
+\f3\b por c\'f3digo
+\f0\b0  (ambos a la vez).\
+	\'95	Debe persistir (en SQLite) para no depender solo de memoria.\
+\pard\tqr\tx260\tx420\li420\fi-420\sl324\slmult1\sb240\partightenfactor0
+
+\f5 \cf2 	3.	
+\f3\b Bloqueo temporal tras 6 fallos + backoff
+\f0\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Contabilizar fallos por 
+\f3\b c\'f3digo
+\f0\b0  (y opcionalmente por IP).\
+	\'95	Tras 
+\f3\b 6 intentos fallidos
+\f0\b0 , bloquear ese c\'f3digo durante un tiempo inicial (p. ej. 5 min).\
+	\'95	Aplicar 
+\f3\b backoff incremental/exponencial
+\f0\b0  en bloqueos sucesivos (p. ej. 5m \uc0\u8594  15m \u8594  1h \u8594  6h).\
+\pard\tqr\tx260\tx420\li420\fi-420\sl324\slmult1\sb240\partightenfactor0
+
+\f5 \cf2 	4.	
+\f3\b Revocar / Rotar c\'f3digo
+\f0\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Implementar endpoint/acci\'f3n para 
+\f3\b revocar
+\f0\b0  un c\'f3digo y/o 
+\f3\b rotarlo
+\f0\b0  (generar otro).\
+	\'95	Un c\'f3digo revocado debe quedar 
+\f3\b inutilizable
+\f0\b0  inmediatamente.\
+\pard\tqr\tx260\tx420\li420\fi-420\sl324\slmult1\sb240\partightenfactor0
+
+\f5 \cf2 	5.	
+\f3\b Almacenar el c\'f3digo como secreto (no en texto plano)
+\f0\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	No guardar el c\'f3digo en claro en la base de datos.\
+	\'95	Guardar:\
+\pard\tqr\tx900\tx1060\li1060\fi-1060\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	un 
+\f3\b \cf2 hash de verificaci\'f3n
+\f0\b0 \cf2  (tipo bcrypt/argon2)\
+	\'95	y un 
+\f3\b \cf2 identificador de b\'fasqueda
+\f0\b0 \cf2  determinista (p. ej. HMAC del c\'f3digo) para poder localizar el sub-usuario sin revelar el c\'f3digo.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 \
+Si en alg\'fan punto faltan detalles, 
+\f3\b no inventes
+\f0\b0 : pregunta antes de asumir (por ejemplo: formato exacto de licencia, expiraci\'f3n, m\'e1ximo de sub-usuarios por cuenta, etc.).}
