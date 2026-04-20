@@ -12,3 +12,4 @@ python-jose
 uuid-utils
 itsdangerous
 passlib
+pikepdf==10.5.1
