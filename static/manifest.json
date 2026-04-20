@@ -1,0 +1,21 @@
+{
+  "name": "Aula PDF",
+  "short_name": "AulaPDF",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e11d48",
+  "description": "Lector interactivo de cuadernos PDF.",
+  "icons": [
+    {
+      "src": "/static/images/logo_aula_abcd.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/images/logo_aula_abcd.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

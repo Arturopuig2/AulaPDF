@@ -5,15 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aula PDF</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#e11d48">
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
+            --primary: #e11d48;
+            --primary-dark: #be123c;
             --bg-body: #f8fafc;
             --bg-card: #ffffff;
             --text-main: #1e293b;
             --text-muted: #64748b;
             --border: #e2e8f0;
+            --hover-bg: #f1f5f9;
         }
 
         html,
@@ -72,29 +75,40 @@
 
         .btn {
             display: inline-block;
-            background: var(--primary);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: 500;
+            background: #e11d48;
+            color: white !important;
+            padding: 10px 24px;
+            border-radius: 50px;
+            text-decoration: none !important;
+            font-weight: 700;
             border: none;
             cursor: pointer;
             transition: background 0.2s;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .btn:hover {
-            background: var(--primary-dark);
+            background: #be123c;
         }
 
         .btn-outline {
-            background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
+            background: #e11d48;
+            border: none;
+            color: white;
         }
 
         .btn-outline:hover {
-            background: #eff6ff;
+            background: #be123c;
+        }
+
+        .btn-green {
+            background: #10b981 !important; /* Emerald Green */
+        }
+
+        .btn-green:hover {
+            background: #059669 !important;
         }
 
         .form-group {
@@ -140,6 +154,77 @@
             font-size: 0.9rem;
             margin-top: auto;
         }
+
+        .pdf-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .pdf-item-btn {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 400;
+            white-space: nowrap;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 640px) {
+            .navbar {
+                padding: 0.75rem 1rem;
+            }
+
+            .logo img {
+                height: 32px !important;
+            }
+
+            .navbar-label {
+                display: none;
+            }
+
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.75rem;
+            }
+
+            .login-card,
+            .register-card {
+                padding: 2rem 1rem !important;
+                margin: 2rem auto !important;
+                max-width: 100% !important;
+                border-radius: 12px !important;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.75rem;
+            }
+
+            .btn {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.9rem;
+            }
+
+            .card {
+                padding: 1rem;
+            }
+
+            .pdf-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+
+            .pdf-item-btn {
+                text-align: center;
+                width: 100%;
+                padding: 0.6rem;
+                font-size: 1rem;
+            }
+        }
     </style>
 </head>
 
@@ -150,7 +235,7 @@
                 <img src="/static/images/logo_aula_abcd.png" alt="Aula PDF" style="height: 40px;">
             </a>
             {% if request.url.path == '/login' or request.url.path == '/register' %}
-            <span
+            <span class="navbar-label"
                 style="font-size: 1.1rem; color: var(--text-muted); font-weight: 500; position: absolute; left: 50%; transform: translateX(-50%);">Lector
                 de PDF</span>
             {% endif %}
@@ -160,8 +245,7 @@
         </div>
         <div>
             {% if request.url.path != '/login' and request.url.path != '/register' %}
-            <a href="https://shop.itbook.es/" target="_blank" class="btn btn-outline" style="margin-right: 0.5rem">Ir a
-                la tienda</a>
+            <a href="https://shop.itbook.es/" target="_blank" class="btn btn-outline" style="margin-right: 0.5rem">TIENDA</a>
             {% endif %}
             {% if request.session.get("user_id") %}
             {% if request.session.get("is_admin") %}
@@ -170,10 +254,10 @@
             {% endif %}
             {% endif %}
             {% block navbar_extra %}{% endblock %}
-            <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">Cerrar</a>
+            <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">CERRAR</a>
             {% else %}
             {% if request.url.path != '/login' and request.url.path != '/register' %}
-            <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">Cerrar</a>
+            <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">CERRAR</a>
             {% endif %}
             {% endif %}
         </div>
@@ -182,6 +266,13 @@
         {% block content %}{% endblock %}
     </div>
     <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW failed', err));
+            });
+        }
+
         function closeApp() {
             // Just logout, do not attempt window.close() as it causes issues
             window.location.href = "/logout";

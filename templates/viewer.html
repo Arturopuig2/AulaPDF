@@ -7,288 +7,702 @@
 </a>
 {% endif %}
 {% endblock %}
+
 {% block content %}
 <style>
-    .pdf-page {
-        display: block;
-        max-width: 100%;
-        height: auto;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    :root {
+        --viewer-bg: #e5e7eb;
+        --toolbar-height: 60px;
+        --accent-red: #e11d48;
     }
 
-    /* Fullscreen overrides */
-    :fullscreen,
-    ::backdrop {
-        background-color: #525659;
-        width: 100% !important;
-        height: 100% !important;
-        max-width: none !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
+    body {
+        background-color: var(--viewer-bg) !important;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        height: 100vh;
         display: flex;
         flex-direction: column;
     }
 
-    /* Safari support */
-    :-webkit-full-screen {
-        background-color: #525659;
-        width: 100% !important;
-        height: 100% !important;
-        max-width: none !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
-        display: flex;
-        flex-direction: column;
+    .navbar {
+        display: none !important; /* Hide default navbar in viewer for immersive experience */
     }
 
-    :fullscreen #pdf-container,
-    :-webkit-full-screen #pdf-container {
-        height: auto !important;
+    #viewer-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #f3f4f6;
+        display: flex;
+        flex-direction: column;
+        z-index: 2000;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .top-toolbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 80px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 0 2rem;
+        pointer-events: none;
+        z-index: 2500;
+    }
+
+    .btn-volver {
+        background: white;
+        color: #e11d48 !important;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-decoration: none !important;
+        pointer-events: auto;
+        transition: all 0.2s;
+        border: 2px solid #e11d48;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        position: relative;
+    }
+
+    /* Hitbox ajustada: cubre la esquina superior derecha pero no se excede por debajo */
+    .btn-volver::after {
+        content: '';
+        position: absolute;
+        top: -20px;
+        right: -40px;
+        bottom: -5px;
+        left: -15px;
+    }
+
+    .btn-volver:hover {
+        background: #fff1f2;
+        transform: scale(1.1);
+    }
+
+    #book-container {
         flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        padding: 40px;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    /* Side Arrows - Rectangular as in screenshot */
+    .nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 50px;
+        height: 100px;
+        background: white;
+        border: 1px solid #d1d5db;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        z-index: 10;
+        transition: all 0.2s;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .nav-arrow:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        width: 55px; /* Slight expansion on hover */
+    }
+
+    .nav-arrow.left { left: 20px; }
+    .nav-arrow.right { right: 20px; }
+
+    .nav-arrow svg {
+        width: 32px;
+        height: 32px;
+        color: #4b5563;
+        stroke-width: 3;
+    }
+
+    #book {
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .page {
+        background-color: white;
+        overflow: hidden;
+    }
+
+    /* Page fold shadow effect */
+    .stPageFlip-page.-left::after {
+        content: "";
+        position: absolute;
+        top: 0; right: 0; bottom: 0;
+        width: 30px;
+        background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+        pointer-events: none;
+    }
+    .stPageFlip-page.-right::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; bottom: 0;
+        width: 30px;
+        background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+        pointer-events: none;
+    }
+
+    .page-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    canvas {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    /* Bottom Toolbar Group */
+    .bottom-toolbar {
+        height: 60px;
+        background: #fdfdfd;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 1rem;
+        z-index: 100;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+    }
+
+    .nav-controls-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 4px 10px;
+    }
+
+    .nav-controls-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 4px 10px;
+    }
+
+    .nav-controls-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 4px 10px;
+    }
+
+    .annotation-canvas {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .mode-active {
+        background: var(--accent-red) !important;
+        color: white !important;
+        border-color: var(--accent-red) !important;
+    }
+
+    .pencil-cursor {
+        cursor: crosshair !important;
+    }
+
+    .eraser-cursor {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="rgba(225,29,72,0.2)" stroke="%23e11d48" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>') 10 10, auto !important;
+    }
+
+    .page-content {
+        position: relative;
+    }
+
+    .page-input {
+        width: 45px;
+        border: 1px solid #d1d5db;
+        text-align: center;
+        padding: 4px;
+        font-size: 1rem;
+        border-radius: 2px;
+        font-weight: 500;
+    }
+
+    .page-total {
+        color: #4b5563;
+        font-size: 1rem;
+        margin-left: 2px;
+    }
+
+    .view-mode-icons {
+        display: flex;
+        gap: 6px;
+        margin-left: 10px;
+    }
+
+    .mode-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background: white;
+        cursor: pointer;
+        color: #9ca3af;
+        transition: all 0.2s;
+    }
+
+    .mode-icon:hover {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .extra-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .control-btn {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background: white;
+        cursor: pointer;
+        color: #6b7280;
+    }
+
+    .control-btn:hover {
+        background: #f3f4f6;
+    }
+
+    #loading-overlay {
+        position: fixed;
+        top: 0;left: 0;right: 0;bottom: 0;
+        background: rgba(243, 244, 246, 0.9);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 3000;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #d1d5db;
+        border-top: 4px solid var(--accent-red);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Fullscreen adjustment */
+    :fullscreen #viewer-wrapper {
+        padding-top: 0;
+    }
+
+    @media (max-width: 768px) {
+        .top-toolbar { height: 60px; padding: 0 1rem; }
+        .nav-arrow { display: none; }
+        .btn-volver { width: 40px; height: 40px; }
     }
 </style>
 
-<div style="max-width: 1000px; margin: 0 auto; text-align: center;">
-    <div style="display: flex; justify-content: center; align-items: baseline; gap: 1rem; margin-bottom: 0.5rem;">
-        <h2 style="margin: 0; font-weight: normal;">{{ pdf.title }}</h2>
+<div id="viewer-wrapper">
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p id="loading-status">Inicializando lector...</p>
     </div>
 
-    <!-- Custom PDF.js Viewer -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <div class="top-toolbar">
+        <a href="/" class="btn-volver" title="Cerrar">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </a>
+    </div>
 
-    <!-- Unified Viewer Card -->
-    <div
-        style="max-width: 500px; margin: 2rem auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-
-        <!-- PDF Container -->
-        <div id="pdf-container"
-            style="width: 100%; height: 500px; overflow-y: auto; background: #525659; padding: 2rem 0; display: flex; flex-direction: column; align-items: center;"
-            oncontextmenu="return false;">
-            <p id="loading-text" style="color: white; text-align: center; margin-top: 2rem;">Cargando documento...</p>
+    <!-- Book Section -->
+    <div id="book-container">
+        <div class="nav-arrow left" onclick="pageFlip.flipPrev()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </div>
 
-        <!-- Controls Toolbar -->
-        <div
-            style="background: #2c3e50; color: white; padding: 0.5rem; display: flex; gap: 0.5rem; justify-content: center; align-items: center; border-top: 1px solid #34495e; flex-wrap: wrap;">
+        <div id="book">
+            <!-- Pages will be injected here -->
+        </div>
 
-            <!-- Zoom Controls -->
-            <button onclick="changeZoom(-0.12)" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 8px; font-weight: bold; min-width: 32px;"
-                title="Reducir">-</button>
-            <span id="zoom-level"
-                style="font-family: monospace; font-size: 0.9rem; min-width: 50px; text-align: center;">100%</span>
-            <button onclick="changeZoom(0.12)" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 4px 8px; font-weight: bold; min-width: 32px;"
-                title="Ampliar">+</button>
-
-            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 0.2rem;"></div>
-
-            <!-- Page Indicator -->
-            <span id="page-indicator"
-                style="font-family: monospace; font-size: 0.9rem; min-width: 60px; text-align: center;">-- / --</span>
-
-            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 0.2rem;"></div>
-
-            <!-- Double Page Toggle -->
-            <button onclick="toggleDoublePage()" id="btn-double" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 6px; display: flex; align-items: center;"
-                title="Doble Página">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-                </svg>
-            </button>
-
-            <!-- Fullscreen -->
-            <button onclick="toggleFullscreen()" id="btn-fullscreen" class="btn btn-outline"
-                style="color: white; border-color: rgba(255,255,255,0.3); padding: 6px; display: flex; align-items: center;"
-                title="Pantalla Completa">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path
-                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                </svg>
-            </button>
+        <div class="nav-arrow right" onclick="pageFlip.flipNext()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
     </div>
 
+    <!-- Bottom Toolbar -->
+    <div class="bottom-toolbar">
+        <div class="nav-controls-group">
+            <input type="text" id="current-page-input" class="page-input" value="1">
+            <span class="page-total" id="total-pages-display">/ --</span>
+        </div>
 
 
+        <div class="view-mode-icons">
+            <button class="mode-icon" onclick="changeZoom(-0.2)" title="Reducir">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button class="mode-icon" onclick="changeZoom(0.2)" title="Ampliar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <div style="width:1px; height:20px; background:#e5e7eb; margin:0 4px;"></div>
+            <button id="btn-draw" class="mode-icon" onclick="toggleDrawing('pencil')" title="Herramienta Lápiz">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
+            </button>
+            <button id="btn-eraser" class="mode-icon" onclick="toggleDrawing('eraser')" title="Goma de Borrar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21Z"></path><path d="m22 21H7"></path><path d="m5 11 9 9"></path></svg>
+            </button>
+            <button class="mode-icon" onclick="clearAnnotations()" title="Borrar todo">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+        </div>
 
+        <div class="extra-controls" style="margin-left: auto;">
+            <button class="control-btn" onclick="toggleFullscreen()" title="Pantalla Completa">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+            </button>
+            {% if request.session.get("is_admin") %}
+            <button class="control-btn" onclick="showDownloadForm()" title="Descargar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
+
 <script>
-    const url = '/pdf/{{ pdf.id }}/inline';
-    const container = document.getElementById('pdf-container');
-    const loadingText = document.getElementById('loading-text');
-    const zoomLevelDisplay = document.getElementById('zoom-level');
-    const pageIndicator = document.getElementById('page-indicator');
-    const btnDouble = document.getElementById('btn-double');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+    const pdfUrl = '/pdf/{{ pdf.id }}/inline';
     let pdfDoc = null;
-    let currentScale = 0.6;
-    let isRendering = false;
-    let isDoublePage = false;
-    let pageObserver = null;
-    let currentVisiblePage = 1;
+    let pageFlip = null;
+    const bookElement = document.getElementById('book');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingStatus = document.getElementById('loading-status');
+    const pageInput = document.getElementById('current-page-input');
+    const totalPagesDisplay = document.getElementById('total-pages-display');
 
-    function initPageObserver() {
-        if (pageObserver) pageObserver.disconnect();
-
-        const options = {
-            root: container,
-            rootMargin: '0px',
-            threshold: 0.1
-        };
-
-        pageObserver = new IntersectionObserver((entries) => {
-            const visiblePages = entries
-                .filter(entry => entry.isIntersecting)
-                .map(entry => parseInt(entry.target.dataset.pageNumber))
-                .sort((a, b) => a - b);
-
-            if (visiblePages.length > 0) {
-                currentVisiblePage = visiblePages[0];
-                const totalPages = pdfDoc ? pdfDoc.numPages : '--';
-                if (pageIndicator) pageIndicator.textContent = `${currentVisiblePage} / ${totalPages}`;
-            }
-        }, options);
-    }
-
-    async function renderPageToCanvas(pageNum, scale) {
-        const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: scale });
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        canvas.className = 'pdf-page';
-        canvas.dataset.pageNumber = pageNum;
-
-        const renderContext = {
-            canvasContext: context,
-            viewport: viewport
-        };
-        await page.render(renderContext).promise;
-        return canvas;
-    }
-
-    async function renderPDF(scale) {
-        if (!pdfDoc) return;
-        isRendering = true;
-
-        // Save target page before any changes
-        const targetPage = currentVisiblePage;
-
-        currentScale = scale;
-        const BASE_SCALE = 0.6;
-        if (zoomLevelDisplay) {
-            const percentage = Math.round((currentScale / BASE_SCALE) * 100);
-            zoomLevelDisplay.textContent = `${percentage}%`;
-        }
-
-        // BUFFERING: Render to off-screen fragment
-        const fragment = document.createDocumentFragment();
-
-        if (isDoublePage) {
-            // COVER
-            if (pdfDoc.numPages >= 1) {
-                const cover = await renderPageToCanvas(1, scale);
-                fragment.appendChild(cover);
-            }
-
-            // PAIRS
-            for (let pageNum = 2; pageNum <= pdfDoc.numPages; pageNum += 2) {
-                const row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.justifyContent = 'center';
-                row.style.gap = '20px';
-                row.style.marginBottom = '20px';
-                row.style.width = '100%';
-
-                const canvas1 = await renderPageToCanvas(pageNum, scale);
-                canvas1.style.marginBottom = '0';
-                row.appendChild(canvas1);
-
-                if (pageNum + 1 <= pdfDoc.numPages) {
-                    const canvas2 = await renderPageToCanvas(pageNum + 1, scale);
-                    canvas2.style.marginBottom = '0';
-                    row.appendChild(canvas2);
-                }
-                fragment.appendChild(row);
-            }
-        } else {
-            // SINGLE
-            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-                const canvas = await renderPageToCanvas(pageNum, scale);
-                fragment.appendChild(canvas);
-            }
-        }
-
-        // SWAP CONTENT AT ONCE (Prevents "Jump to Top")
-        container.innerHTML = '';
-        container.appendChild(fragment);
-
-        // RE-ATTACH OBSERVERS
-        initPageObserver();
-        const allCanvases = container.querySelectorAll('canvas.pdf-page');
-        allCanvases.forEach(canvas => pageObserver.observe(canvas));
-
-        // RESTORE SCROLL
-        const targetElement = container.querySelector(`canvas[data-page-number="${targetPage}"]`);
-        if (targetElement) {
-            targetElement.scrollIntoView({ block: 'start' });
-        }
-
-        isRendering = false;
-    }
-
-    async function initPDF() {
-        try {
-            const loadingTask = pdfjsLib.getDocument(url);
-            pdfDoc = await loadingTask.promise;
-            if (loadingText) loadingText.remove();
-
-            renderPDF(currentScale);
-        } catch (error) {
-            console.error('Error loading PDF:', error);
-            container.innerHTML = '<p style="color: white;">Error al cargar el documento.</p>';
-        }
-    }
+    let globalZoom = 1.0;
 
     function changeZoom(delta) {
-        if (isRendering) return;
-        const newScale = currentScale + delta;
-        if (newScale >= 0.25 && newScale <= 3.0) {
-            renderPDF(newScale);
+        if (!pageFlip) return;
+        const newZoom = globalZoom + delta;
+        if (newZoom >= 0.5 && newZoom <= 2.0) {
+            globalZoom = newZoom;
+            bookElement.style.transform = `scale(${globalZoom})`;
+            bookElement.style.transition = "transform 0.2s ease-out";
+            
+            // Adjust container if needed to allow scrolling
+            const container = document.getElementById('book-container');
+            if (globalZoom > 1.0) {
+                container.style.overflow = "auto";
+                container.style.alignItems = "flex-start"; // Better for scrolling
+            } else {
+                container.style.overflow = "hidden";
+                container.style.alignItems = "center";
+            }
         }
     }
 
-    function toggleDoublePage() {
-        if (isRendering) return;
-        isDoublePage = !isDoublePage;
+    async function initViewer() {
+        try {
+            loadingStatus.textContent = "Descargando PDF...";
+            const loadingTask = pdfjsLib.getDocument(pdfUrl);
+            pdfDoc = await loadingTask.promise;
+            
+            const totalPages = pdfDoc.numPages;
+            totalPagesDisplay.textContent = `/ ${totalPages}`;
+            
+            loadingStatus.textContent = `Procesando ${totalPages} páginas...`;
+            
+            // We need a stable width/height for the book
+            // Get dimensions from first page
+            const firstPage = await pdfDoc.getPage(1);
+            const viewport = firstPage.getViewport({ scale: 1.5 }); // High res for quality
+            const pageAspectRatio = viewport.width / viewport.height;
 
-        const singlePageIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`;
-        const doublePageIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`;
+            // Calculate display dimensions based on container
+            const container = document.getElementById('book-container');
+            const containerWidth = container.clientWidth - 100;
+            const containerHeight = container.clientHeight - 40;
 
-        if (isDoublePage) {
-            btnDouble.innerHTML = singlePageIcon;
-            btnDouble.title = "Vista Página Simple";
-        } else {
-            btnDouble.innerHTML = doublePageIcon;
-            btnDouble.title = "Vista Doble Página";
+            let bookWidth, bookHeight;
+            
+            // Determine if we should be in double page or single page mode
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // Single page mode
+                bookHeight = containerHeight;
+                bookWidth = bookHeight * pageAspectRatio;
+                if (bookWidth > containerWidth) {
+                    bookWidth = containerWidth;
+                    bookHeight = bookWidth / pageAspectRatio;
+                }
+            } else {
+                // Double page mode
+                bookHeight = containerHeight;
+                bookWidth = (bookHeight * pageAspectRatio) * 2;
+                if (bookWidth > containerWidth) {
+                    bookWidth = containerWidth;
+                    bookHeight = (bookWidth / 2) / pageAspectRatio;
+                }
+            }            // Create all page placeholders immediately
+            for (let i = 1; i <= totalPages; i++) {
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page';
+                pageDiv.id = `page-${i}`;
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'page-content';
+                
+                // Annotation Canvas
+                const annCanvas = document.createElement('canvas');
+                annCanvas.className = 'annotation-canvas';
+                annCanvas.id = `ann-canvas-${i}`;
+
+                contentDiv.innerHTML = `<div class="loading-placeholder" style="display:flex; flex-direction:column; align-items:center; color:#9ca3af;">
+                    <div class="spinner" style="width:24px; height:24px; border-width:2px;"></div>
+                    <span style="font-size:0.8rem;">Cargando página ${i}...</span>
+                </div>`;
+                contentDiv.appendChild(annCanvas);
+                pageDiv.appendChild(contentDiv);
+                bookElement.appendChild(pageDiv);
+            }
+
+            loadingStatus.textContent = "Iniciándolo libro...";
+
+            // Initialize PageFlip
+            pageFlip = new St.PageFlip(bookElement, {
+                width: isMobile ? bookWidth : bookWidth / 2,
+                height: bookHeight,
+                size: "fixed",
+                minWidth: 315, maxWidth: 3000, 
+                minHeight: 420, maxHeight: 4000,
+                maxShadowOpacity: 0.5,
+                showCover: true,
+                mobileScrollSupport: false,
+                useMouseEvents: false, // Prevents automatic flipping by clicking/dragging pages
+                showPageCorners: false, // Removes the corner curl effect
+                swipeDistance: 0, // Disables swipe gestures
+                clickEventForward: true, // Keeps events passing for drawings
+                usePortrait: isMobile // Evita el modo página única automático en escritorio
+            });
+
+            pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+            // Drawing Logic
+            let isDrawing = false;
+            let lastX = 0; let lastY = 0;
+            let drawingActive = false;
+            let currentMode = 'pencil'; // 'pencil' or 'eraser'
+
+            window.toggleDrawing = (mode) => {
+                if (drawingActive && currentMode === mode) {
+                    // Turn off
+                    drawingActive = false;
+                } else {
+                    // Turn on or switch mode
+                    drawingActive = true;
+                    currentMode = mode;
+                }
+
+                document.getElementById('btn-draw').classList.toggle('mode-active', drawingActive && currentMode === 'pencil');
+                document.getElementById('btn-eraser').classList.toggle('mode-active', drawingActive && currentMode === 'eraser');
+                
+                const canvases = document.querySelectorAll('.annotation-canvas');
+                canvases.forEach(c => {
+                    c.style.pointerEvents = drawingActive ? 'auto' : 'none';
+                    // Remove old cursor classes
+                    c.classList.remove('pencil-cursor', 'eraser-cursor');
+                    // Add new cursor class if active
+                    if (drawingActive) {
+                        c.classList.add(currentMode === 'eraser' ? 'eraser-cursor' : 'pencil-cursor');
+                    }
+                });
+            };
+
+            window.clearAnnotations = () => {
+                if (!confirm("¿Borrar todos los dibujos del cuaderno?")) return;
+                const canvases = document.querySelectorAll('.annotation-canvas');
+                canvases.forEach(c => {
+                    const ctx = c.getContext('2d');
+                    ctx.clearRect(0, 0, c.width, c.height);
+                });
+            };
+
+            function initDrawing(canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.strokeStyle = '#e11d48';
+                ctx.lineWidth = 3;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                const getCoords = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    return {
+                        x: ((e.clientX || (e.touches && e.touches[0].clientX)) - rect.left) * scaleX,
+                        y: ((e.clientY || (e.touches && e.touches[0].clientY)) - rect.top) * scaleY
+                    };
+                };
+
+                canvas.onmousedown = canvas.ontouchstart = (e) => {
+                    if (!drawingActive) return;
+                    isDrawing = true;
+                    const c = getCoords(e);
+                    lastX = c.x; lastY = c.y;
+                    
+                    // Set mode
+                    if (currentMode === 'eraser') {
+                        ctx.globalCompositeOperation = 'destination-out';
+                        ctx.lineWidth = 40; // Thicker for eraser
+                    } else {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.strokeStyle = '#e11d48';
+                        ctx.lineWidth = 3;
+                    }
+                };
+
+                canvas.onmousemove = canvas.ontouchmove = (e) => {
+                    if (!isDrawing || !drawingActive) return;
+                    if (e.cancelable) e.preventDefault();
+                    const c = getCoords(e);
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(c.x, c.y);
+                    ctx.stroke();
+                    lastX = c.x; lastY = c.y;
+                };
+
+                canvas.onmouseup = canvas.onmouseout = canvas.ontouchend = () => isDrawing = false;
+            }
+
+
+            async function renderPage(pageNum) {
+                const page = await pdfDoc.getPage(pageNum);
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                const renderViewport = page.getViewport({ scale: 2.0 });
+                canvas.width = renderViewport.width;
+                canvas.height = renderViewport.height;
+
+                await page.render({
+                    canvasContext: context,
+                    viewport: renderViewport
+                }).promise;
+
+                const pageDiv = document.getElementById(`page-${pageNum}`);
+                if (pageDiv) {
+                    const placeholder = pageDiv.querySelector('.loading-placeholder');
+                    if (placeholder) placeholder.remove();
+                    const content = pageDiv.querySelector('.page-content');
+                    content.insertBefore(canvas, content.firstChild);
+                    
+                    // Match annotation canvas size
+                    const annCanvas = document.getElementById(`ann-canvas-${pageNum}`);
+                    annCanvas.width = canvas.width;
+                    annCanvas.height = canvas.height;
+                    initDrawing(annCanvas);
+                }
+            }
+
+            // Define rendering queues
+            const renderQueue = Array.from({length: totalPages}, (_, i) => i + 1);
+            const priorityPages = renderQueue.splice(0, 4);
+
+            // Render priority pages first
+            for (const num of priorityPages) {
+                await renderPage(num);
+            }
+
+            // Hide loading overlay once priority is done
+            loadingOverlay.style.display = 'none';
+
+            // Catch the rest in background
+            (async () => {
+                for (const num of renderQueue) {
+                    await new Promise(r => setTimeout(r, 100)); // Non-blocking delay
+                    await renderPage(num);
+                }
+            })();
+
+            // Sync input with page changes
+            pageFlip.on('flip', (e) => {
+                pageInput.value = e.data + 1;
+            });
+
+            pageInput.addEventListener('change', (e) => {
+                const targetPage = parseInt(e.target.value) - 1;
+                if (!isNaN(targetPage) && targetPage >= 0 && targetPage < totalPages) {
+                    pageFlip.flip(targetPage);
+                } else {
+                    e.target.value = (pageFlip.getCurrentPageIndex() || 0) + 1;
+                }
+            });
+
+        } catch (error) {
+            console.error('Error initialization:', error);
+            loadingStatus.textContent = "Error al cargar el documento.";
+            loadingStatus.style.color = "red";
         }
-        renderPDF(currentScale);
     }
 
     function toggleFullscreen() {
-        const wrapper = container.parentElement;
+        const elem = document.getElementById('viewer-wrapper');
         if (!document.fullscreenElement) {
-            wrapper.requestFullscreen().catch(err => {
-                alert(`Error al entrar en pantalla completa: ${err.message}`);
+            elem.requestFullscreen().catch(err => {
+                alert(`Error: ${err.message}`);
             });
         } else {
             document.exitFullscreen();
@@ -302,35 +716,15 @@
         }
     }
 
-    // Fullscreen Event Listener
-    document.addEventListener('fullscreenchange', () => {
-        const btnFullscreen = document.getElementById('btn-fullscreen');
-        const expandIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>`;
-        const compressIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>`;
-
-        if (document.fullscreenElement) {
-            btnFullscreen.innerHTML = compressIcon;
-            btnFullscreen.title = "Salir de Pantalla Completa";
-        } else {
-            btnFullscreen.innerHTML = expandIcon;
-            btnFullscreen.title = "Pantalla Completa";
-        }
-    });
-
-    initPDF();
-
     async function downloadFileConfirm(code) {
         if (!code) return;
-
         const formData = new FormData();
         formData.append('access_code', code);
-
         try {
             const response = await fetch('/pdf/{{ pdf.id }}/download', {
                 method: 'POST',
                 body: formData
             });
-
             if (response.ok) {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -348,5 +742,24 @@
             alert("Error de conexión.");
         }
     }
+
+    // Handle resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            // Re-calc and update if necessary
+            // For now, simpler to just reload or re-init if really needed
+            // StPageFlip supports update() but re-calc of width/height is external
+        }, 500);
+    });
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') pageFlip.flipNext();
+        if (e.key === 'ArrowLeft') pageFlip.flipPrev();
+    });
+
+    initViewer();
 </script>
 {% endblock %}

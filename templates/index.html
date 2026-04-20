@@ -31,13 +31,11 @@
     {% endif %}
 
     {% for pdf in pdfs %}
-    <div class="card"
-        style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; margin-bottom: 0.5rem;">
-        <div>
+    <div class="card pdf-item">
+        <div class="pdf-item-info">
             <h3 style="margin: 0; font-size: 1.1rem;">{{ pdf.title }}</h3>
         </div>
-        <a href="/pdf/{{ pdf.id }}" class="btn"
-            style="padding: 0.3rem 0.8rem; font-size: 0.85rem; font-weight: 400;">Ver Cuaderno</a>
+        <a href="/pdf/{{ pdf.id }}" class="btn btn-green pdf-item-btn">Ver Cuaderno</a>
     </div>
     {% endfor %}
 </div>
