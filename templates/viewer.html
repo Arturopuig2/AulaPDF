@@ -24,6 +24,7 @@
         height: 100vh;
         display: flex;
         flex-direction: column;
+        overscroll-behavior: none; /* Prevent swipe to go back */
     }
 
     .navbar {
@@ -344,8 +345,14 @@
 
     @media (max-width: 768px) {
         .top-toolbar { height: 60px; padding: 0 1rem; }
-        .nav-arrow { display: none; }
-        .btn-volver { width: 40px; height: 40px; }
+        .nav-arrow { 
+            width: 44px; 
+            height: 70px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .nav-arrow.left { left: 10px; }
+        .nav-arrow.right { right: 10px; }
+        .btn-volver { width: 44px; height: 44px; }
     }
 </style>
 
@@ -480,9 +487,11 @@
             
             // Determine if we should be in double page or single page mode
             const isMobile = window.innerWidth <= 768;
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const useSinglePage = isMobile && isPortrait;
             
-            if (isMobile) {
-                // Single page mode
+            if (useSinglePage) {
+                // Single page mode (Portrait Mobile)
                 bookHeight = containerHeight;
                 bookWidth = bookHeight * pageAspectRatio;
                 if (bookWidth > containerWidth) {
@@ -490,7 +499,7 @@
                     bookHeight = bookWidth / pageAspectRatio;
                 }
             } else {
-                // Double page mode
+                // Double page mode (Desktop or Landscape Mobile)
                 bookHeight = containerHeight;
                 bookWidth = (bookHeight * pageAspectRatio) * 2;
                 if (bookWidth > containerWidth) {
@@ -523,7 +532,7 @@
 
             // Initialize PageFlip
             pageFlip = new St.PageFlip(bookElement, {
-                width: isMobile ? bookWidth : bookWidth / 2,
+                width: useSinglePage ? bookWidth : bookWidth / 2,
                 height: bookHeight,
                 size: "fixed",
                 minWidth: 315, maxWidth: 3000, 
@@ -535,7 +544,7 @@
                 showPageCorners: false, // Removes the corner curl effect
                 swipeDistance: 0, // Disables swipe gestures
                 clickEventForward: true, // Keeps events passing for drawings
-                usePortrait: isMobile // Evita el modo página única automático en escritorio
+                usePortrait: useSinglePage // Evita el modo página única automático en escritorio
             });
 
             pageFlip.loadFromHTML(document.querySelectorAll('.page'));

@@ -22,7 +22,7 @@
         html,
         body {
             height: 100%;
-            overscroll-behavior-y: none;
+            overscroll-behavior: none;
         }
 
         body {
@@ -277,6 +277,19 @@
             // Just logout, do not attempt window.close() as it causes issues
             window.location.href = "/logout";
         }
+
+        // Bloquear gesto de retroceso del navegador/móvil globalmente
+        history.pushState(null, null, location.href);
+        window.onpopstate = function(event) {
+            history.pushState(null, null, location.href);
+        };
+
+        // Bloqueo físico de inicio de gesto en bordes (iOS Safari / Chrome Mobile)
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches[0] && e.touches[0].pageX < 50) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     </script>
     <footer class="footer">
         Editorial Aula. C/ Hierros, 14D. 46022. València. info@editorialaula.es. Teléfono: 669141263
