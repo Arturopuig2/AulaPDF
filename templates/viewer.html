@@ -440,26 +440,65 @@
     const totalPagesDisplay = document.getElementById('total-pages-display');
 
     let globalZoom = 1.0;
+    const minZoom = 0.5;
+    const maxZoom = 4.0;
+    let initialZoom = 1.0;
+    let startDistance = 0;
 
-    function changeZoom(delta) {
+    function applyZoom(newZoom) {
         if (!pageFlip) return;
-        const newZoom = globalZoom + delta;
-        if (newZoom >= 0.5 && newZoom <= 2.0) {
-            globalZoom = newZoom;
-            bookElement.style.transform = `scale(${globalZoom})`;
-            bookElement.style.transition = "transform 0.2s ease-out";
-            
-            // Adjust container if needed to allow scrolling
-            const container = document.getElementById('book-container');
-            if (globalZoom > 1.0) {
-                container.style.overflow = "auto";
-                container.style.alignItems = "flex-start"; // Better for scrolling
-            } else {
-                container.style.overflow = "hidden";
-                container.style.alignItems = "center";
-            }
+        
+        // Clamp zoom
+        globalZoom = Math.min(Math.max(newZoom, minZoom), maxZoom);
+        
+        bookElement.style.transform = `scale(${globalZoom})`;
+        bookElement.style.transition = globalZoom === initialZoom ? "transform 0.2s ease-out" : "none"; // No transition while pinching for better performance
+        
+        const container = document.getElementById('book-container');
+        if (globalZoom > 1.0) {
+            container.style.overflow = "auto";
+            container.style.alignItems = "flex-start";
+        } else {
+            container.style.overflow = "hidden";
+            container.style.alignItems = "center";
+            container.scrollLeft = 0;
+            container.scrollTop = 0;
         }
     }
+
+    function changeZoom(delta) {
+        initialZoom = globalZoom; // Hack to allow transition in applyZoom
+        applyZoom(globalZoom + delta);
+    }
+
+    // Pinch and Zoom logic
+    window.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            startDistance = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            initialZoom = globalZoom;
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && startDistance > 0) {
+            e.preventDefault(); 
+            const currentDistance = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            const ratio = currentDistance / startDistance;
+            applyZoom(initialZoom * ratio);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+            startDistance = 0;
+        }
+    });
 
     async function initViewer() {
         try {
