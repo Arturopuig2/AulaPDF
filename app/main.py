@@ -28,15 +28,28 @@ app.include_router(contact.router)
 @app.on_event("startup")
 def create_initial_user():
     db = database.SessionLocal()
-    user = db.query(models.User).filter(models.User.username == "admin").first()
-    if not user:
-        # Create default admin
-        # In a real app, read from env or generate random and log it
-        print("Creating default admin user...")
-        admin_pass = os.getenv("ADMIN_PASSWORD", "admin123")
-        hashed = auth.get_password_hash(admin_pass)
-        new_user = models.User(username="admin", hashed_password=hashed, is_admin=True)
-        db.add(new_user)
-        db.commit()
-        print(f"Default Admin created: user='admin'")
-    db.close()
+    try:
+        user = db.query(models.User).filter(models.User.username == "admin").first()
+        admin_pass = os.getenv("ADMIN_PASSWORD")
+        
+        if not user:
+            # Create default admin if not exists
+            if not admin_pass:
+                admin_pass = "admin123"
+            print("Creating default admin user...")
+            hashed = auth.get_password_hash(admin_pass)
+            new_user = models.User(username="admin", hashed_password=hashed, is_admin=True)
+            db.add(new_user)
+            db.commit()
+            print(f"Default Admin created: user='admin'")
+        elif admin_pass:
+            # Update existing admin password to match environment variable
+            print("Updating existing admin password from environment variable...")
+            user.hashed_password = auth.get_password_hash(admin_pass)
+            db.commit()
+            print("Admin password updated successfully.")
+    except Exception as e:
+        print(f"Error initializing admin user: {e}")
+        db.rollback()
+    finally:
+        db.close()
