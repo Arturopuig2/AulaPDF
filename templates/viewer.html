@@ -451,16 +451,19 @@
         // Clamp zoom
         globalZoom = Math.min(Math.max(newZoom, minZoom), maxZoom);
         
+        bookElement.style.transformOrigin = "0 0"; // Stronger for scrolling
         bookElement.style.transform = `scale(${globalZoom})`;
-        bookElement.style.transition = globalZoom === initialZoom ? "transform 0.2s ease-out" : "none"; // No transition while pinching for better performance
+        bookElement.style.transition = globalZoom === initialZoom ? "transform 0.2s ease-out" : "none"; 
         
         const container = document.getElementById('book-container');
         if (globalZoom > 1.0) {
             container.style.overflow = "auto";
             container.style.alignItems = "flex-start";
+            container.style.justifyContent = "flex-start";
         } else {
             container.style.overflow = "hidden";
             container.style.alignItems = "center";
+            container.style.justifyContent = "center";
             container.scrollLeft = 0;
             container.scrollTop = 0;
         }
