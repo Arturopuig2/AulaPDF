@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from . import models, database, auth
-from .routers import admin, viewer, auth as auth_router
+from .routers import admin, viewer, auth as auth_router, contact
 import os
 from dotenv import load_dotenv
 
@@ -23,6 +23,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth_router.router)
 app.include_router(admin.router)
 app.include_router(viewer.router)
+app.include_router(contact.router)
 
 @app.on_event("startup")
 def create_initial_user():
