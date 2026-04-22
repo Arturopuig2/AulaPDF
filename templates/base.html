@@ -167,15 +167,55 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
         }
 
-        .pdf-item-btn {
-            padding: 0.3rem 0.8rem;
-            font-size: 0.85rem;
-            font-weight: 400;
-            white-space: nowrap;
+        .clickable-card {
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            border: 1px solid var(--border);
+        }
+
+        .clickable-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        }
+
+        .pdf-title {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .pdf-meta {
+            margin-top: 4px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-dot {
+            color: var(--border);
+        }
+
+        .pdf-item-arrow {
+            color: var(--primary);
+            opacity: 0.4;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .clickable-card:hover .pdf-item-arrow {
+            opacity: 1;
+            transform: translateX(4px);
         }
 
         /* Mobile Optimizations */
@@ -221,16 +261,9 @@
             }
 
             .pdf-item {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-
-            .pdf-item-btn {
-                text-align: center;
-                width: 100%;
-                padding: 0.6rem;
-                font-size: 1rem;
+                flex-direction: row;
+                align-items: center;
+                padding: 1rem;
             }
         }
     </style>
