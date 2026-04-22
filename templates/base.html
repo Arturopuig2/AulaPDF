@@ -295,10 +295,8 @@
             {% endif %}
             {% endif %}
             {% block navbar_extra %}{% endblock %}
-            <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">CERRAR</a>
             {% else %}
             {% if request.url.path != '/login' and request.url.path != '/register' %}
-            <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">CERRAR</a>
             {% endif %}
             {% endif %}
         </div>
