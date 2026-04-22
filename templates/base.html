@@ -270,16 +270,12 @@
 </head>
 
 <body>
+    {% if request.url.path != '/login' and request.url.path != '/register' %}
     <nav class="navbar">
         <div style="display: flex; align-items: center; gap: 1rem;">
             <a href="/" class="logo" style="display: flex; align-items: center;">
                 <img src="/static/images/logo_aula_abcd.png" alt="Aula PDF" style="height: 40px;">
             </a>
-            {% if request.url.path == '/login' or request.url.path == '/register' %}
-            <span class="navbar-label"
-                style="font-size: 1.1rem; color: var(--text-muted); font-weight: 500; position: absolute; left: 50%; transform: translateX(-50%);">Lector
-                de PDF</span>
-            {% endif %}
             {% if request.url.path.startswith('/admin') or request.url.path.startswith('/pdf') %}
             <a href="/" class="btn btn-outline">&larr; Listado</a>
             {% endif %}
@@ -302,6 +298,7 @@
             {% endif %}
         </div>
     </nav>
+    {% endif %}
     <div class="container">
         {% block content %}{% endblock %}
     </div>
@@ -412,11 +409,13 @@
             }
         }
     </script>
+    {% if request.url.path != '/login' and request.url.path != '/register' %}
     <footer class="footer">
         <div style="margin-bottom: 1.5rem;">
             <button onclick="openContactModal()" class="btn btn-blue">QUIERO MÁS INFO</button>
         </div>
         Editorial Aula. C/ Hierros, 14D. 46022. València. info@editorialaula.es. Teléfono: 669141263
     </footer>
+    {% endif %}
 </body>
 </html>
