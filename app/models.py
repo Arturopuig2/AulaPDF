@@ -7,9 +7,11 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
+    username = Column(String, unique=True, index=True) # Email
+    full_name = Column(String, nullable=True)
     hashed_password = Column(String)
     is_admin = Column(Boolean, default=False)
+    role = Column(String, default="parent") # "teacher" or "parent"
 
 class PDF(Base):
     __tablename__ = "pdfs"

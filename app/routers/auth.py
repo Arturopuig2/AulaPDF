@@ -56,10 +56,12 @@ async def register_page(request: Request):
 @router.post("/register")
 async def register(
     request: Request,
+    full_name: str = Form(...),
     username: str = Form(...),
     confirm_username: str = Form(...),
     password: str = Form(...),
     confirm_password: str = Form(...),
+    role: str = Form(...),
     db: Session = Depends(database.get_db)
 ):
     # 0. Check Emails match
@@ -86,7 +88,12 @@ async def register(
 
     # 3. Create User
     hashed_password = auth.get_password_hash(password)
-    new_user = models.User(username=username, hashed_password=hashed_password)
+    new_user = models.User(
+        username=username, 
+        full_name=full_name,
+        hashed_password=hashed_password,
+        role=role
+    )
     
     try:
         db.add(new_user)
