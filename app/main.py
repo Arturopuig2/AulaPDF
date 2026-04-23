@@ -25,31 +25,43 @@ app.include_router(admin.router)
 app.include_router(viewer.router)
 app.include_router(contact.router)
 
+from sqlalchemy import text, inspect
+
 @app.on_event("startup")
-def create_initial_user():
+def startup_db_setup():
     db = database.SessionLocal()
     try:
+        # 1. Automatic Migration for User Model
+        inspector = inspect(database.engine)
+        columns = [c['name'] for c in inspector.get_columns('users')]
+        
+        if 'full_name' not in columns:
+            print("Migrating DB: Adding full_name column to users table")
+            db.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR"))
+        if 'role' not in columns:
+            print("Migrating DB: Adding role column to users table")
+            db.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'parent'"))
+        db.commit()
+
+        # 2. Sync Admin User
         user = db.query(models.User).filter(models.User.username == "admin").first()
         admin_pass = os.getenv("ADMIN_PASSWORD")
         
         if not user:
-            # Create default admin if not exists
             if not admin_pass:
                 admin_pass = "admin123"
-            print("Creating default admin user...")
+            print("Creating initial admin user...")
             hashed = auth.get_password_hash(admin_pass)
-            new_user = models.User(username="admin", hashed_password=hashed, is_admin=True)
+            new_user = models.User(username="admin", full_name="Administrador", hashed_password=hashed, is_admin=True, role="teacher")
             db.add(new_user)
             db.commit()
-            print(f"Default Admin created: user='admin'")
         elif admin_pass:
-            # Update existing admin password to match environment variable
-            print("Updating existing admin password from environment variable...")
+            # Update password if env var changed
             user.hashed_password = auth.get_password_hash(admin_pass)
             db.commit()
-            print("Admin password updated successfully.")
+            
     except Exception as e:
-        print(f"Error initializing admin user: {e}")
+        print(f"Error during startup migration/initialization: {e}")
         db.rollback()
     finally:
         db.close()

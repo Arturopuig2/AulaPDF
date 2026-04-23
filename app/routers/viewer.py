@@ -54,6 +54,7 @@ async def download_pdf(
     access_code: str = Form(...),
     db: Session = Depends(database.get_db)
 ):
+    access_code = access_code.strip()
     # Validate PDF existence
     pdf = db.query(models.PDF).filter(models.PDF.id == pdf_id).first()
     if not pdf:

@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models, database, auth
 
 router = APIRouter(
@@ -30,7 +30,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(database.get_d
     if not user or not user.is_admin:
         return templates.TemplateResponse("login.html", {"request": request, "error": "Acceso restringido"})
 
-    pdfs = db.query(models.PDF).order_by(models.PDF.uploaded_at.desc()).all()
+    pdfs = db.query(models.PDF).options(joinedload(models.PDF.access_codes)).order_by(models.PDF.uploaded_at.desc()).all()
     return templates.TemplateResponse("admin.html", {
         "request": request, 
         "pdfs": pdfs,
