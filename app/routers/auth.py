@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Form, Response, BackgroundTasks
+from fastapi import APIRouter, Depends, Request, Form, Response, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -121,3 +121,32 @@ async def register(
             "request": request,
             "error": "Error al crear el usuario. Inténtalo de nuevo."
         })
+
+@router.post("/change-password")
+async def change_password(
+    request: Request,
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(database.get_db)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
+        
+    # Verify old password
+    if not auth.verify_password(old_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+        
+    # Verify new passwords match
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="Las nuevas contraseñas no coinciden")
+        
+    # Update password
+    user.hashed_password = auth.get_password_hash(new_password)
+    db.commit()
+    
+    return {"message": "Contraseña actualizada correctamente."}
