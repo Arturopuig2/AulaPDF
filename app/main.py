@@ -41,6 +41,17 @@ def startup_db_setup():
         if 'role' not in columns:
             print("Migrating DB: Adding role column to users table")
             db.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'parent'"))
+        if 'has_active_license' not in columns:
+            print("Migrating DB: Adding has_active_license column to users table")
+            db.execute(text("ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT 0"))
+        
+        # 1b. Automatic Migration for License Model
+        if 'licenses' in inspector.get_table_names():
+            columns_licenses = [c['name'] for c in inspector.get_columns('licenses')]
+            if 'expires_at' not in columns_licenses:
+                print("Migrating DB: Adding expires_at column to licenses table")
+                db.execute(text("ALTER TABLE licenses ADD COLUMN expires_at DATETIME"))
+                
         db.commit()
 
         # 2. Sync Admin User

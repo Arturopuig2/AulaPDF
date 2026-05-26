@@ -81,3 +81,11 @@ def reset_rate_limit(db: Session, ip_address: str):
     if record:
         db.delete(record)
         db.commit()
+
+import string
+def generate_user_license():
+    """
+    Generates a secure user license code: 9 uppercase alphanumeric characters (excluding I, L, O).
+    """
+    allowed_chars = "".join(set(string.ascii_uppercase + string.digits) - {"I", "L", "O"})
+    return ''.join(secrets.choice(allowed_chars) for _ in range(9))

@@ -12,6 +12,7 @@ class User(Base):
     hashed_password = Column(String)
     is_admin = Column(Boolean, default=False)
     role = Column(String, default="parent") # "teacher" or "parent"
+    has_active_license = Column(Boolean, default=False)
 
 class PDF(Base):
     __tablename__ = "pdfs"
@@ -44,3 +45,15 @@ class RateLimit(Base):
     failed_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
     last_attempt = Column(DateTime, default=datetime.utcnow)
+
+class License(Base):
+    __tablename__ = "licenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True)
+    is_used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    user = relationship("User", backref="user_licenses")

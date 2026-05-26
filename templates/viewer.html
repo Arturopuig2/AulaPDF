@@ -395,6 +395,13 @@
             <span class="page-total" id="total-pages-display">/ --</span>
         </div>
 
+        {% if not (request.session.get('has_active_license') or request.session.get('is_admin')) %}
+        <div class="preview-badge" style="background: #fee2e2; color: #b91c1c; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid #fca5a5; margin-left: 10px;">
+            <span>⚠️ Vista previa (12 págs.)</span>
+            <button onclick="openLicenseModal()" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s; text-transform: uppercase;">Activar</button>
+        </div>
+        {% endif %}
+
 
         <div class="view-mode-icons">
             <button class="mode-icon" onclick="changeZoom(-0.2)" title="Reducir">
@@ -514,7 +521,8 @@
             const loadingTask = pdfjsLib.getDocument(pdfUrl);
             pdfDoc = await loadingTask.promise;
             
-            const totalPages = pdfDoc.numPages;
+            const hasActiveLicense = {{ 'true' if (request.session.get('has_active_license') or request.session.get('is_admin')) else 'false' }};
+            const totalPages = hasActiveLicense ? pdfDoc.numPages : Math.min(pdfDoc.numPages, 12);
             totalPagesDisplay.textContent = `/ ${totalPages}`;
             
             loadingStatus.textContent = `Procesando ${totalPages} páginas...`;
@@ -765,34 +773,31 @@
         }
     }
 
-    function showDownloadForm() {
-        const code = prompt("Introduce el Código de Acceso:");
-        if (code) {
-            downloadFileConfirm(code);
+    async function showDownloadForm() {
+        if (!hasActiveLicense) {
+            alert("No tienes una licencia activa para descargar este documento.");
+            return;
         }
+        await downloadFileConfirm();
     }
 
-    async function downloadFileConfirm(code) {
-        if (!code) return;
-        const formData = new FormData();
-        formData.append('access_code', code);
+    async function downloadFileConfirm() {
         try {
             const response = await fetch('/pdf/{{ pdf.id }}/download', {
-                method: 'POST',
-                body: formData
+                method: 'POST'
             });
             if (response.ok) {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "{{ pdf.filename }}";
+                a.download = "{{ pdf.title }}.pdf";
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
             } else {
                 const err = await response.json();
-                alert(err.detail || "Código incorrecto.");
+                alert(err.detail || "No autorizado.");
             }
         } catch (e) {
             alert("Error de conexión.");

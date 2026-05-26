@@ -1,7 +1,7 @@
 import shutil
 import os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
 from .. import models, database, auth
@@ -30,10 +30,12 @@ async def admin_dashboard(request: Request, db: Session = Depends(database.get_d
     if not user or not user.is_admin:
         return templates.TemplateResponse("login.html", {"request": request, "error": "Acceso restringido"})
 
-    pdfs = db.query(models.PDF).options(joinedload(models.PDF.access_codes)).order_by(models.PDF.uploaded_at.desc()).all()
+    pdfs = db.query(models.PDF).order_by(models.PDF.uploaded_at.desc()).all()
+    licenses = db.query(models.License).order_by(models.License.created_at.desc()).all()
     return templates.TemplateResponse("admin.html", {
         "request": request, 
         "pdfs": pdfs,
+        "licenses": licenses,
         "subjects": SUBJECTS,
         "grades": GRADES
     })
@@ -73,11 +75,6 @@ async def upload_pdf(
         print(f"Optimization failed: {e}")
         os.rename(temp_location, file_location)
 
-    # Generate Access Code
-    new_code_str = auth.generate_access_code()
-    while db.query(models.AccessCode).filter(models.AccessCode.code == new_code_str).first():
-        new_code_str = auth.generate_access_code()
-
     # Save Metadata to DB
     new_pdf = models.PDF(
         title=title,
@@ -87,14 +84,8 @@ async def upload_pdf(
     )
     db.add(new_pdf)
     db.commit()
-    db.refresh(new_pdf)
 
-    # Associate Code
-    access_code = models.AccessCode(code=new_code_str, pdf_id=new_pdf.id)
-    db.add(access_code)
-    db.commit()
-
-    return await admin_dashboard(request, db)
+    return RedirectResponse(url="/admin", status_code=303)
 
 @router.post("/delete/{pdf_id}")
 async def delete_pdf(pdf_id: int, request: Request, db: Session = Depends(database.get_db)):
@@ -109,11 +100,38 @@ async def delete_pdf(pdf_id: int, request: Request, db: Session = Depends(databa
         if os.path.exists(file_path):
             os.remove(file_path)
             
-        # Cascading delete handles access codes usually, but explicit here for safety
-        db.query(models.AccessCode).filter(models.AccessCode.pdf_id == pdf_id).delete()
         db.delete(pdf)
         db.commit()
 
-    return await admin_dashboard(request, db)
+    return RedirectResponse(url="/admin", status_code=303)
 
-import secrets # Need to import locally or at top
+@router.post("/generate-license")
+async def generate_license(request: Request, db: Session = Depends(database.get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    # Generate unique code
+    new_code = auth.generate_user_license()
+    while db.query(models.License).filter(models.License.code == new_code).first():
+        new_code = auth.generate_user_license()
+        
+    # Save to DB
+    license_record = models.License(code=new_code)
+    db.add(license_record)
+    db.commit()
+    
+    return RedirectResponse(url="/admin", status_code=303)
+
+@router.post("/delete-license/{license_id}")
+async def delete_license(license_id: int, request: Request, db: Session = Depends(database.get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    license_record = db.query(models.License).filter(models.License.id == license_id).first()
+    if license_record:
+        db.delete(license_record)
+        db.commit()
+        
+    return RedirectResponse(url="/admin", status_code=303)

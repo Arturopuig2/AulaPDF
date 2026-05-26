@@ -42,6 +42,17 @@ async def login(
     auth.reset_rate_limit(db, ip)
     request.session["user_id"] = user.id
     request.session["is_admin"] = user.is_admin
+    request.session["full_name"] = user.full_name
+    request.session["has_active_license"] = user.has_active_license
+    
+    if user.has_active_license:
+        active_lic = db.query(models.License).filter(
+            models.License.user_id == user.id,
+            models.License.is_used == True
+        ).order_by(models.License.created_at.desc()).first()
+        if active_lic and active_lic.expires_at:
+            request.session["license_expiration"] = active_lic.expires_at.strftime("%d/%m/%Y")
+            
     return RedirectResponse(url="/", status_code=303)
 
 @router.get("/logout")

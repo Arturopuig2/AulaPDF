@@ -267,6 +267,107 @@
                 padding: 1rem;
             }
         }
+
+        /* User Menu Dropdown */
+        .user-menu-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .user-menu-btn {
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.6rem 1.2rem;
+            border-radius: 9999px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .user-menu-btn:hover {
+            border-color: var(--primary);
+            background: var(--hover-bg);
+        }
+
+        .user-menu-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: white;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            border-radius: 16px;
+            width: 240px;
+            padding: 1rem 0;
+            z-index: 1000;
+            text-align: left;
+        }
+
+        .user-menu-dropdown.show {
+            display: block;
+        }
+
+        .dropdown-section {
+            padding: 0.25rem 1.25rem 0.5rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .dropdown-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .license-badge {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            width: fit-content;
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 0.75rem 1.25rem;
+            color: var(--text-main);
+            text-decoration: none !important;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover {
+            background: #f1f5f9;
+        }
+
+        .logout-item {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .logout-item:hover {
+            background: #fee2e2;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 0.4rem 0;
+        }
     </style>
 </head>
 
@@ -281,22 +382,43 @@
             <a href="/" class="btn btn-outline">&larr; Listado</a>
             {% endif %}
         </div>
-        <div>
-            {% if request.url.path != '/login' and request.url.path != '/register' %}
-            <a href="https://shop.itbook.es/" target="_blank" class="btn btn-outline" style="margin-right: 0.5rem">TIENDA</a>
-            {% endif %}
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
             {% if request.session.get("user_id") %}
-            {% if request.session.get("is_admin") %}
-            {% if not request.url.path.startswith('/admin') %}
-            <a href="/admin" class="btn btn-outline" style="margin-right: 0.5rem">Admin</a>
-            {% endif %}
-            <a href="javascript:void(0);" onclick="closeApp()" class="btn btn-outline">CERRAR</a>
+                {% if request.session.get("is_admin") and not request.url.path.startswith('/admin') %}
+                <a href="/admin" class="btn btn-outline">Admin</a>
+                {% endif %}
+                
+                <!-- Dropdown Menu -->
+                <div class="user-menu-container">
+                    <button class="user-menu-btn" onclick="toggleUserMenu(event)">
+                        <span class="user-name-text">{{ (request.session.get("full_name") or "Usuario").upper() }}</span>
+                        <span class="menu-icon">&#9776;</span>
+                    </button>
+                    <div id="user-menu-dropdown" class="user-menu-dropdown">
+                        <div class="dropdown-section">
+                            {% if request.session.get('has_active_license') or request.session.get('is_admin') %}
+                            <span class="license-badge" style="background: #dcfce7; color: #15803d;">Acceso Completo</span>
+                                {% if request.session.get('is_admin') %}
+                                <span class="license-expiration" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-top: 4px;">Permanente</span>
+                                {% elif request.session.get('license_expiration') %}
+                                <span class="license-expiration" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-top: 4px;">Caduca el {{ request.session.get('license_expiration') }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="license-badge">Modo Gratuito</span>
+                            {% endif %}
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="javascript:void(0);" onclick="openLicenseModal()" class="dropdown-item">Añadir Licencia</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/logout" class="dropdown-item">Cambiar usuario</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="https://shop.itbook.es/" target="_blank" class="dropdown-item">Tienda</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="javascript:void(0);" onclick="closeApp()" class="dropdown-item logout-item">Cerrar</a>
+                    </div>
+                </div>
             {% endif %}
             {% block navbar_extra %}{% endblock %}
-            {% else %}
-            {% if request.url.path != '/login' and request.url.path != '/register' %}
-            {% endif %}
-            {% endif %}
         </div>
     </nav>
     {% endif %}
@@ -409,7 +531,106 @@
                 submitBtn.disabled = false;
             }
         }
+
+        // Toggle User Menu Dropdown
+        function toggleUserMenu(event) {
+            if (event) event.stopPropagation();
+            const dropdown = document.getElementById('user-menu-dropdown');
+            if (dropdown) dropdown.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('user-menu-dropdown');
+            const btn = document.querySelector('.user-menu-btn');
+            if (dropdown && dropdown.classList.contains('show')) {
+                if (btn && !btn.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                }
+            }
+        });
+
+        // License Modal functions
+        function openLicenseModal() {
+            const dropdown = document.getElementById('user-menu-dropdown');
+            if (dropdown) dropdown.classList.remove('show');
+            
+            document.getElementById('license-status').style.display = 'none';
+            document.getElementById('license-modal').style.display = 'flex';
+        }
+
+        function closeLicenseModal() {
+            document.getElementById('license-modal').style.display = 'none';
+        }
+
+        async function submitLicenseForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const statusDiv = document.getElementById('license-status');
+            const formData = new FormData(form);
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerText;
+            submitBtn.innerText = "ACTIVANDO...";
+            submitBtn.disabled = true;
+            statusDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/activate-license', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    statusDiv.innerText = result.message;
+                    statusDiv.style.backgroundColor = "#dcfce7";
+                    statusDiv.style.color = "#15803d";
+                    statusDiv.style.display = 'block';
+                    form.reset();
+                    setTimeout(() => {
+                        closeLicenseModal();
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    statusDiv.innerText = "Error: " + (result.detail || "Error desconocido");
+                    statusDiv.style.backgroundColor = "#fee2e2";
+                    statusDiv.style.color = "#b91c1c";
+                    statusDiv.style.display = 'block';
+                }
+            } catch (error) {
+                statusDiv.innerText = "Error de conexión al activar la licencia.";
+                statusDiv.style.backgroundColor = "#fee2e2";
+                statusDiv.style.color = "#b91c1c";
+                statusDiv.style.display = 'block';
+            } finally {
+                setTimeout(() => {
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                }, 1000);
+            }
+        }
     </script>
+
+    <!-- License Modal -->
+    <div id="license-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div style="background: white; padding: 2.5rem; max-width: 500px; width: 95%; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); font-family: inherit;">
+            <h2 style="margin-top: 0; color: var(--primary); font-size: 1.8rem; margin-bottom: 1.5rem;">Añadir Licencia</h2>
+            
+            <div id="license-status" style="display: none; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 500; font-size: 1rem;"></div>
+
+            <form id="license-form" onsubmit="submitLicenseForm(event)">
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:0.6rem; font-weight:600; font-size: 1.1rem;">Código de Licencia</label>
+                    <input type="text" name="license_code" required placeholder="Introduce tu código de licencia" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1.1rem; text-transform: uppercase;">
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="submit" class="btn" style="flex: 1; padding: 12px; font-size: 1.1rem;">ACTIVAR</button>
+                    <button type="button" onclick="closeLicenseModal()" class="btn btn-outline" style="flex: 1; background: #64748b; padding: 12px; font-size: 1.1rem;">CANCELAR</button>
+                </div>
+            </form>
+        </div>
+    </div>
     {% if request.url.path != '/login' and request.url.path != '/register' %}
     <footer class="footer">
         <div style="margin-bottom: 1.5rem;">
