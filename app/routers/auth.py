@@ -150,3 +150,105 @@ async def change_password(
     db.commit()
     
     return {"message": "Contraseña actualizada correctamente."}
+
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from jose import jwt, JWTError
+from datetime import timedelta
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse("forgot_password.html", {"request": request})
+
+@router.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(request: Request):
+    return templates.TemplateResponse("reset_password.html", {"request": request})
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(database.get_db)
+):
+    # In our DB, username is the email
+    user = db.query(models.User).filter(models.User.username == email).first()
+    if not user:
+        return {"message": "Si el correo electrónico está registrado, recibirás un enlace para restablecer tu contraseña."}
+        
+    # Generate Token
+    reset_token = auth.create_access_token(
+        data={"sub": user.username, "type": "reset"},
+        expires_delta=timedelta(minutes=15)
+    )
+    
+    # Determine base url
+    base_url = str(request.base_url).rstrip("/")
+    if "127.0.0.1" not in base_url and "localhost" not in base_url:
+        base_url = base_url.replace("http://", "https://")
+    reset_link = f"{base_url}/reset-password?token={reset_token}"
+    
+    # Send email or fallback to simulation
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASSWORD")
+    
+    if not all([smtp_host, smtp_user, smtp_pass]):
+        print("==================================================")
+        print(f"PASSWORD RESET LINK FOR {user.username}:")
+        print(reset_link)
+        print("==================================================")
+        return {"message": "Si el correo electrónico está registrado, recibirás un enlace (modo simulación)."}
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = user.username
+        msg['Subject'] = 'Recuperar Contraseña - Aula PDF'
+        
+        body = f"Hola {user.full_name or 'Usuario'},\n\nAquí tienes tu enlace para restablecer tu contraseña en Aula PDF:\n\n{reset_link}\n\nEste enlace caducará en 15 minutos."
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP(smtp_host, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        
+        return {"message": "Te hemos enviado un enlace para restablecer tu contraseña a tu correo electrónico."}
+    except Exception as e:
+        print(f"Error sending password reset email: {e}")
+        return {"message": "Error al enviar el correo. Por favor, contacta con soporte."}
+
+@router.post("/reset-password")
+async def reset_password(
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(database.get_db)
+):
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="Las contraseñas no coinciden")
+        
+    try:
+        # Decode Token
+        payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        username: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        
+        if username is None or token_type != "reset":
+            raise HTTPException(status_code=400, detail="Token inválido o expirado.")
+            
+        user = db.query(models.User).filter(models.User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=400, detail="Usuario no encontrado.")
+            
+        # Update Password
+        user.hashed_password = auth.get_password_hash(new_password)
+        db.commit()
+        
+        return {"message": "Tu contraseña ha sido restablecida correctamente."}
+    except JWTError:
+        raise HTTPException(status_code=400, detail="El enlace de recuperación es inválido o ha expirado.")

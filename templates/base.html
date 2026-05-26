@@ -372,7 +372,7 @@
 </head>
 
 <body>
-    {% if request.url.path != '/login' and request.url.path != '/register' %}
+    {% if request.url.path != '/login' and request.url.path != '/register' and request.url.path != '/forgot-password' and request.url.path != '/reset-password' %}
     <nav class="navbar">
         <div style="display: flex; align-items: center; gap: 1rem;">
             <a href="/" class="logo" style="display: flex; align-items: center;">
@@ -719,7 +719,7 @@
             </form>
         </div>
     </div>
-    {% if request.url.path != '/login' and request.url.path != '/register' %}
+    {% if request.url.path != '/login' and request.url.path != '/register' and request.url.path != '/forgot-password' and request.url.path != '/reset-password' %}
     <footer class="footer">
         <div style="margin-bottom: 1.5rem;">
             <button onclick="openContactModal()" class="btn btn-blue">QUIERO MÁS INFO</button>
