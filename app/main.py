@@ -43,7 +43,7 @@ def startup_db_setup():
             db.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'parent'"))
         if 'has_active_license' not in columns:
             print("Migrating DB: Adding has_active_license column to users table")
-            db.execute(text("ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT 0"))
+            db.execute(text("ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT FALSE"))
         
         # 1b. Automatic Migration for License Model
         if 'licenses' in inspector.get_table_names():
