@@ -8,9 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Create Tables
-models.Base.metadata.create_all(bind=database.engine)
-
 app = FastAPI(title="Aula PDF Reader")
 
 # Session Middleware (Secret key should be env var in prod)
@@ -29,6 +26,11 @@ from sqlalchemy import text, inspect
 
 @app.on_event("startup")
 def startup_db_setup():
+    try:
+        models.Base.metadata.create_all(bind=database.engine)
+    except Exception as e:
+        print(f"Notice on create_all: {e}")
+
     db = database.SessionLocal()
     try:
         inspector = inspect(database.engine)
