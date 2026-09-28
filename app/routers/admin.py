@@ -12,7 +12,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-templates = Jinja2Templates(directory="templates")
+from ..templating import templates
 
 # Constants for Filters
 SUBJECTS = ["Matemáticas", "Matemàtiques", "Lengua", "Valencià", "Inglés", "Otras"]

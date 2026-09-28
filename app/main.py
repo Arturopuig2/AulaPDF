@@ -24,9 +24,7 @@ app.include_router(contact.router)
 
 from sqlalchemy import text
 from fastapi import Request
-from fastapi.templating import Jinja2Templates
-
-templates = Jinja2Templates(directory="templates")
+from .templating import templates
 
 def run_db_migrations():
     # 1. Create tables if not exist

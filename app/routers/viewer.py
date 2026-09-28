@@ -1,26 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from sqlalchemy.orm import Session
-from .. import models, database
+from .. import models, database, auth
 from datetime import datetime, timedelta, timezone
 
 def check_license_validity(expires_at):
-    if not expires_at:
-        return True
-    try:
-        if getattr(expires_at, "tzinfo", None) is not None:
-            return expires_at > datetime.now(timezone.utc)
-        return expires_at > datetime.utcnow()
-    except Exception:
-        return True
+    return auth.check_license_validity(expires_at)
 
 router = APIRouter(
     tags=["viewer"],
     responses={404: {"description": "Not found"}},
 )
 
-templates = Jinja2Templates(directory="templates")
 
 # Same constants used for rendering filters
 SUBJECTS = ["Matemáticas", "Matemàtiques", "Lengua", "Valencià", "Inglés", "Otras"]
