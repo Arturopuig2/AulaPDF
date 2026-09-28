@@ -474,6 +474,7 @@
     const loadingStatus = document.getElementById('loading-status');
     const pageInput = document.getElementById('current-page-input');
     const totalPagesDisplay = document.getElementById('total-pages-display');
+    let totalBookPages = 1;
 
     let globalZoom = 1.0;
     const minZoom = 0.5;
@@ -546,7 +547,8 @@
             pdfDoc = await loadingTask.promise;
             
             const hasActiveLicense = {{ 'true' if (has_active_license or request.session.get('has_active_license') or request.session.get('is_admin')) else 'false' }};
-            const totalPages = hasActiveLicense ? pdfDoc.numPages : Math.min(pdfDoc.numPages, 12);
+            totalBookPages = hasActiveLicense ? pdfDoc.numPages : Math.min(pdfDoc.numPages, 12);
+            const totalPages = totalBookPages;
             totalPagesDisplay.textContent = `/ ${totalPages}`;
             
             loadingStatus.textContent = `Procesando ${totalPages} páginas...`;
@@ -770,11 +772,18 @@
             pageFlip.on('flip', (e) => {
                 pageInput.value = e.data + 1;
                 updateDownloadTooltip();
+                setTimeout(updateDownloadTooltip, 150);
+            });
+
+            pageFlip.on('changeState', (e) => {
+                if (e.data === 'read') {
+                    updateDownloadTooltip();
+                }
             });
 
             pageInput.addEventListener('change', (e) => {
                 const targetPage = parseInt(e.target.value) - 1;
-                if (!isNaN(targetPage) && targetPage >= 0 && targetPage < totalPages) {
+                if (!isNaN(targetPage) && targetPage >= 0 && targetPage < totalBookPages) {
                     pageFlip.flip(targetPage);
                 } else {
                     e.target.value = (pageFlip.getCurrentPageIndex() || 0) + 1;
@@ -790,8 +799,31 @@
     }
 
     function getCurrentlyVisiblePages() {
-        const total = (typeof totalPages !== 'undefined' && totalPages > 0) ? totalPages : 1;
-        
+        const total = (pageFlip && typeof pageFlip.getPageCount === 'function' && pageFlip.getPageCount() > 0)
+            ? pageFlip.getPageCount()
+            : (totalBookPages || 1);
+
+        // 1. Inspect rendered page elements in DOM (StPageFlip hides inactive pages with display: none)
+        const activeDomPages = [];
+        const pageElements = document.querySelectorAll('#book .page');
+        pageElements.forEach(el => {
+            if (el.style.display !== 'none') {
+                const m = el.id && el.id.match(/^page-(\d+)$/);
+                if (m) {
+                    const pNum = parseInt(m[1]);
+                    if (!isNaN(pNum) && pNum >= 1 && pNum <= total) {
+                        activeDomPages.push(pNum);
+                    }
+                }
+            }
+        });
+
+        const sortedDomPages = Array.from(new Set(activeDomPages)).sort((a, b) => a - b);
+        if (sortedDomPages.length > 0) {
+            return sortedDomPages;
+        }
+
+        // 2. Fallback: deterministic mathematical calculation based on pageFlip index
         let currentPageNum = 1;
         if (pageFlip && typeof pageFlip.getCurrentPageIndex === 'function') {
             currentPageNum = pageFlip.getCurrentPageIndex() + 1;
@@ -802,18 +834,12 @@
         const isPortrait = (pageFlip && typeof pageFlip.getOrientation === 'function' && pageFlip.getOrientation() === 'portrait') || 
                            (window.innerWidth <= 768 && window.innerHeight > window.innerWidth);
 
-        // En modo vertical / página única: siempre 1 página
-        if (isPortrait) {
+        // Single page mode (portrait or cover)
+        if (isPortrait || currentPageNum === 1) {
             return [Math.min(Math.max(currentPageNum, 1), total)];
         }
 
-        // En modo horizontal / doble página:
-        // Página 1 es la portada
-        if (currentPageNum === 1) {
-            return [1];
-        }
-
-        // Alinear al pliego par/impar (ej: 2 y 3, 4 y 5)
+        // Double page spread mode
         let leftPage = currentPageNum;
         if (leftPage % 2 !== 0) {
             leftPage = currentPageNum - 1;
