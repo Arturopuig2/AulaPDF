@@ -40,7 +40,6 @@ async def admin_dashboard(request: Request, db: Session = Depends(database.get_d
         "grades": GRADES
     })
 
-import pikepdf
 import secrets
 
 @router.post("/upload")
@@ -58,22 +57,12 @@ async def upload_pdf(
 
     # Generate Secure Filename
     clean_filename = f"{secrets.token_hex(4)}_{file.filename}"
-    temp_location = f"static/pdfs/temp_{clean_filename}"
     file_location = f"static/pdfs/{clean_filename}"
     
-    # Save File temporarily
+    # Save File
     os.makedirs(os.path.dirname(file_location), exist_ok=True)
-    with open(temp_location, "wb+") as file_object:
+    with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
-
-    # Optimize PDF with pikepdf
-    try:
-        with pikepdf.open(temp_location) as pdf:
-            pdf.save(file_location, linearize=True)
-        os.remove(temp_location)
-    except Exception as e:
-        print(f"Optimization failed: {e}")
-        os.rename(temp_location, file_location)
 
     # Save Metadata to DB
     new_pdf = models.PDF(
