@@ -466,7 +466,9 @@
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW failed', err));
+                navigator.serviceWorker.register('/static/sw.js').then(reg => {
+                    reg.update();
+                }).catch(err => console.log('SW failed', err));
             });
         }
 
