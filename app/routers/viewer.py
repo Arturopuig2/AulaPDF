@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
-from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse, Response
 from ..templating import templates
 from sqlalchemy.orm import Session
 from .. import models, database, auth
@@ -138,11 +138,15 @@ async def view_pdf_detail(request: Request, pdf_id: int, db: Session = Depends(d
     })
 
 import os
+import io
+import urllib.parse
+from pypdf import PdfReader, PdfWriter
 
 @router.api_route("/pdf/{pdf_id}/download", methods=["GET", "POST"])
 async def download_pdf(
     pdf_id: int,
     request: Request,
+    pages: str = None,
     access_code: str = Form(None),
     db: Session = Depends(database.get_db)
 ):
@@ -163,6 +167,9 @@ async def download_pdf(
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="El archivo PDF no se encuentra en el servidor.")
 
+    if not pages:
+        pages = request.query_params.get("pages")
+
     # Si es admin o tiene permiso de descarga por licencia activa
     can_dl = user.is_admin or request.session.get("is_admin") or request.session.get("can_download")
     if not can_dl and user.has_active_license:
@@ -177,21 +184,62 @@ async def download_pdf(
                 request.session["can_download"] = True
                 break
 
-    if can_dl:
-        return FileResponse(file_path, media_type='application/pdf', filename=f"{pdf.title}.pdf")
-
     # Si no tiene permiso por licencia pero proporciona código de acceso específico
-    if access_code:
+    code_record = None
+    if not can_dl and access_code:
         access_code = access_code.strip()
         code_record = db.query(models.AccessCode).filter(
             models.AccessCode.code == access_code,
             models.AccessCode.pdf_id == pdf_id
         ).first()
 
-        if code_record:
-            return FileResponse(file_path, media_type='application/pdf', filename=f"{pdf.title}.pdf")
-        else:
-            raise HTTPException(status_code=403, detail="Código inválido para este documento.")
+    if can_dl or code_record:
+        # Si se solicita una página o pliego específico (ej: pages="2,3" o pages="1")
+        if pages:
+            try:
+                page_nums = []
+                for p_str in str(pages).split(","):
+                    p_str = p_str.strip()
+                    if p_str.isdigit():
+                        p_val = int(p_str)
+                        if p_val > 0:
+                            page_nums.append(p_val)
+
+                if page_nums:
+                    reader = PdfReader(file_path)
+                    writer = PdfWriter()
+                    extracted_pages = []
+                    for p_num in page_nums:
+                        if 1 <= p_num <= len(reader.pages):
+                            writer.add_page(reader.pages[p_num - 1])
+                            extracted_pages.append(p_num)
+
+                    if extracted_pages:
+                        buffer = io.BytesIO()
+                        writer.write(buffer)
+                        buffer.seek(0)
+
+                        clean_title = "".join(c for c in pdf.title if c.isalnum() or c in " _-").strip() or "documento"
+                        if len(extracted_pages) == 1:
+                            dl_filename = f"{clean_title}_pag_{extracted_pages[0]}.pdf"
+                        else:
+                            dl_filename = f"{clean_title}_pags_{extracted_pages[0]}_{extracted_pages[-1]}.pdf"
+
+                        encoded_filename = urllib.parse.quote(dl_filename)
+                        return Response(
+                            content=buffer.getvalue(),
+                            media_type="application/pdf",
+                            headers={
+                                "Content-Disposition": f'attachment; filename="{dl_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+                            }
+                        )
+            except Exception as e:
+                print(f"Error extracting pages {pages} for PDF {pdf_id}: {e}")
+
+        return FileResponse(file_path, media_type='application/pdf', filename=f"{pdf.title}.pdf")
+
+    if access_code:
+        raise HTTPException(status_code=403, detail="Código inválido para este documento.")
 
     raise HTTPException(status_code=403, detail="Tu licencia actual no incluye permiso de descarga para este documento.")
 

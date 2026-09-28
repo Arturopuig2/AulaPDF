@@ -447,9 +447,9 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
             </button>
             {% if can_download or request.session.get("can_download") or request.session.get("is_admin") %}
-            <a href="/pdf/{{ pdf.id }}/download" class="control-btn enabled-download-btn" title="Descargar ejemplar (PDF)">
+            <button class="control-btn enabled-download-btn" id="btn-download-bottom" type="button" onclick="downloadCurrentPages()" title="Descargar página(s) actual(es)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            </a>
+            </button>
             {% else %}
             <button class="control-btn disabled-download-btn" type="button" onclick="alert('Tu licencia permite la lectura y visualización completa de este ejemplar, pero no incluye permiso de descarga.')" title="Licencia de sólo lectura (sin descarga)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -756,6 +756,7 @@
 
             // Hide loading overlay once priority is done
             loadingOverlay.style.display = 'none';
+            updateDownloadTooltip();
 
             // Catch the rest in background
             (async () => {
@@ -768,6 +769,7 @@
             // Sync input with page changes
             pageFlip.on('flip', (e) => {
                 pageInput.value = e.data + 1;
+                updateDownloadTooltip();
             });
 
             pageInput.addEventListener('change', (e) => {
@@ -777,6 +779,7 @@
                 } else {
                     e.target.value = (pageFlip.getCurrentPageIndex() || 0) + 1;
                 }
+                updateDownloadTooltip();
             });
 
         } catch (error) {
@@ -784,6 +787,62 @@
             loadingStatus.textContent = "Error al cargar el documento.";
             loadingStatus.style.color = "red";
         }
+    }
+
+    function getCurrentlyVisiblePages() {
+        if (!pageFlip) {
+            const val = parseInt(pageInput ? pageInput.value : 1) || 1;
+            return [val];
+        }
+
+        const visiblePages = [];
+        const pages = document.querySelectorAll('.page');
+        pages.forEach(p => {
+            const parent = p.closest('.stPageFlip-page');
+            if (parent && (parent.classList.contains('-left') || parent.classList.contains('-right'))) {
+                const num = parseInt(p.id.replace('page-', ''));
+                if (!isNaN(num) && num > 0) visiblePages.push(num);
+            }
+        });
+
+        if (visiblePages.length > 0) {
+            visiblePages.sort((a, b) => a - b);
+            return visiblePages;
+        }
+
+        const idx = (typeof pageFlip.getCurrentPageIndex === 'function') ? pageFlip.getCurrentPageIndex() : 0;
+        const isPortrait = (typeof pageFlip.getOrientation === 'function' && pageFlip.getOrientation() === 'portrait') || 
+                           (window.innerWidth <= 768 && window.innerHeight > window.innerWidth);
+        const maxP = (typeof totalPages !== 'undefined') ? totalPages : 1000;
+
+        if (isPortrait) {
+            return [Math.min(Math.max(idx + 1, 1), maxP)];
+        } else {
+            if (idx === 0) {
+                return [1];
+            }
+            const p1 = idx + 1;
+            const p2 = idx + 2;
+            if (p2 <= maxP) {
+                return [p1, p2];
+            } else {
+                return [p1];
+            }
+        }
+    }
+
+    function updateDownloadTooltip() {
+        const btn = document.getElementById('btn-download-bottom');
+        if (!btn) return;
+        const pages = getCurrentlyVisiblePages();
+        const label = pages.length > 1 ? `Descargar páginas ${pages.join(' y ')} (PDF)` : `Descargar página ${pages[0]} (PDF)`;
+        btn.setAttribute('title', label);
+    }
+
+    function downloadCurrentPages() {
+        const pages = getCurrentlyVisiblePages();
+        const pagesParam = pages.join(',');
+        window.location.href = `/pdf/{{ pdf.id }}/download?pages=${pagesParam}`;
     }
 
     function toggleFullscreen() {
@@ -795,17 +854,6 @@
         } else {
             document.exitFullscreen();
         }
-    }
-
-    async function showDownloadForm() {
-        {% if request.session.get("is_admin") or request.session.get("can_download") %}
-            await downloadFileConfirm();
-        {% else %}
-            const code = prompt("Introduce el código de acceso para descargar este documento:");
-            if (code) {
-                await downloadFileConfirm(code);
-            }
-        {% endif %}
     }
 
     async function downloadFileConfirm(code) {
