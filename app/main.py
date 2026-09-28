@@ -78,11 +78,17 @@ def run_db_migrations():
 def startup_db_setup():
     run_db_migrations()
 
+from fastapi.responses import PlainTextResponse
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
     traceback.print_exc()
-    return templates.TemplateResponse("login.html", {
-        "request": request,
-        "error": f"Error del sistema: {str(exc)}"
-    }, status_code=500)
+    try:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": f"Error del sistema: {str(exc)}"
+        }, status_code=500)
+    except Exception:
+        return PlainTextResponse(f"Error del servidor: {str(exc)}", status_code=500)
+

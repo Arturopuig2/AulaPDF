@@ -3,7 +3,17 @@ from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from .. import models, database
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+def check_license_validity(expires_at):
+    if not expires_at:
+        return True
+    try:
+        if getattr(expires_at, "tzinfo", None) is not None:
+            return expires_at > datetime.now(timezone.utc)
+        return expires_at > datetime.utcnow()
+    except Exception:
+        return True
 
 router = APIRouter(
     tags=["viewer"],
@@ -32,19 +42,27 @@ async def home(
         request.session.clear()
         return RedirectResponse(url="/login", status_code=303)
 
-    # Sync session in case it is outdated
-    request.session["has_active_license"] = user.has_active_license
-    if user.has_active_license:
-        active_lic = db.query(models.License).filter(
-            models.License.user_id == user.id,
-            models.License.is_used == True
-        ).order_by(models.License.created_at.desc()).first()
-        if active_lic and active_lic.expires_at:
-            request.session["license_expiration"] = active_lic.expires_at.strftime("%d/%m/%Y")
-        can_dl = user.is_admin or (active_lic and active_lic.allow_download and (active_lic.expires_at is None or active_lic.expires_at > datetime.utcnow()))
-        request.session["can_download"] = bool(can_dl)
-    else:
-        request.session["can_download"] = bool(user.is_admin)
+    # Sync session in case it is outdated safely
+    try:
+        request.session["has_active_license"] = bool(user.has_active_license)
+        if user.has_active_license:
+            active_lic = db.query(models.License).filter(
+                models.License.user_id == user.id,
+                models.License.is_used == True
+            ).order_by(models.License.created_at.desc()).first()
+            if active_lic and active_lic.expires_at:
+                request.session["license_expiration"] = active_lic.expires_at.strftime("%d/%m/%Y")
+            
+            is_valid = active_lic and check_license_validity(active_lic.expires_at)
+            has_dl = bool(getattr(active_lic, 'allow_download', False))
+            can_dl = user.is_admin or (is_valid and has_dl)
+            request.session["can_download"] = bool(can_dl)
+        else:
+            request.session["can_download"] = bool(user.is_admin)
+    except Exception as e:
+        print(f"Error checking user session in home: {e}")
+        request.session["has_active_license"] = bool(getattr(user, 'has_active_license', False))
+        request.session["can_download"] = bool(getattr(user, 'is_admin', False))
 
     query = db.query(models.PDF)
     
@@ -105,15 +123,16 @@ async def download_pdf(
     # Si es admin o tiene permiso de descarga por licencia activa
     can_dl = user.is_admin or request.session.get("is_admin") or request.session.get("can_download")
     if not can_dl and user.has_active_license:
-        active_lic = db.query(models.License).filter(
+        active_lics = db.query(models.License).filter(
             models.License.user_id == user.id,
             models.License.is_used == True,
-            models.License.allow_download == True,
-            (models.License.expires_at == None) | (models.License.expires_at > datetime.utcnow())
-        ).first()
-        if active_lic:
-            can_dl = True
-            request.session["can_download"] = True
+            models.License.allow_download == True
+        ).all()
+        for lic in active_lics:
+            if check_license_validity(lic.expires_at):
+                can_dl = True
+                request.session["can_download"] = True
+                break
 
     if can_dl:
         return FileResponse(file_path, media_type='application/pdf', filename=f"{pdf.title}.pdf")

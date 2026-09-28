@@ -50,17 +50,23 @@ async def login(
     request.session["full_name"] = user.full_name
     request.session["has_active_license"] = user.has_active_license
     
-    if user.has_active_license:
-        active_lic = db.query(models.License).filter(
-            models.License.user_id == user.id,
-            models.License.is_used == True
-        ).order_by(models.License.created_at.desc()).first()
-        if active_lic and active_lic.expires_at:
-            request.session["license_expiration"] = active_lic.expires_at.strftime("%d/%m/%Y")
-        can_dl = user.is_admin or (active_lic and active_lic.allow_download and (active_lic.expires_at is None or active_lic.expires_at > datetime.utcnow()))
-        request.session["can_download"] = bool(can_dl)
-    else:
-        request.session["can_download"] = bool(user.is_admin)
+    try:
+        if user.has_active_license:
+            active_lic = db.query(models.License).filter(
+                models.License.user_id == user.id,
+                models.License.is_used == True
+            ).order_by(models.License.created_at.desc()).first()
+            if active_lic and active_lic.expires_at:
+                request.session["license_expiration"] = active_lic.expires_at.strftime("%d/%m/%Y")
+            is_valid = active_lic and auth.check_license_validity(active_lic.expires_at)
+            has_dl = bool(getattr(active_lic, 'allow_download', False))
+            can_dl = user.is_admin or (is_valid and has_dl)
+            request.session["can_download"] = bool(can_dl)
+        else:
+            request.session["can_download"] = bool(user.is_admin)
+    except Exception as e:
+        print(f"Error checking session download rights in login: {e}")
+        request.session["can_download"] = bool(getattr(user, 'is_admin', False))
             
     return RedirectResponse(url="/", status_code=303)
 

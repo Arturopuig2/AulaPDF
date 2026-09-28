@@ -1,11 +1,21 @@
 import secrets
 import string
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from . import models
 from jose import jwt, JWTError
 import os
+
+def check_license_validity(expires_at):
+    if not expires_at:
+        return True
+    try:
+        if getattr(expires_at, "tzinfo", None) is not None:
+            return expires_at > datetime.now(timezone.utc)
+        return expires_at > datetime.utcnow()
+    except Exception:
+        return True
 
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-for-dev-only")
 ALGORITHM = "HS256"
@@ -51,9 +61,17 @@ def check_rate_limit(db: Session, ip_address: str):
     if not record:
         return True, 0
 
-    if record.locked_until and record.locked_until > datetime.utcnow():
-        wait_time = (record.locked_until - datetime.utcnow()).seconds // 60
-        return False, wait_time + 1
+    if record.locked_until:
+        try:
+            if getattr(record.locked_until, "tzinfo", None) is not None:
+                now_val = datetime.now(timezone.utc)
+            else:
+                now_val = datetime.utcnow()
+            if record.locked_until > now_val:
+                wait_time = (record.locked_until - now_val).seconds // 60
+                return False, wait_time + 1
+        except Exception:
+            pass
 
     return True, 0
 
