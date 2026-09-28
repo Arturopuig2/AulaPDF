@@ -22,72 +22,49 @@ app.include_router(admin.router)
 app.include_router(viewer.router)
 app.include_router(contact.router)
 
-from sqlalchemy import text, inspect
+from sqlalchemy import text
+from fastapi import Request
+from fastapi.templating import Jinja2Templates
 
-@app.on_event("startup")
-def startup_db_setup():
+templates = Jinja2Templates(directory="templates")
+
+def run_db_migrations():
+    # 1. Create tables if not exist
     try:
         models.Base.metadata.create_all(bind=database.engine)
     except Exception as e:
         print(f"Notice on create_all: {e}")
 
+    # 2. Add missing columns directly with per-statement error handling
     db = database.SessionLocal()
     try:
-        inspector = inspect(database.engine)
-        table_names = inspector.get_table_names()
-        
-        # 1. Automatic Migration for User Model
-        if 'users' in table_names:
-            columns = [c['name'] for c in inspector.get_columns('users')]
-            if 'full_name' not in columns:
-                try:
-                    db.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR"))
-                    db.commit()
-                except Exception:
-                    db.rollback()
-            if 'role' not in columns:
-                try:
-                    db.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'parent'"))
-                    db.commit()
-                except Exception:
-                    db.rollback()
-            if 'has_active_license' not in columns:
-                try:
-                    db.execute(text("ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT FALSE"))
-                    db.commit()
-                except Exception:
-                    db.rollback()
-        
-        # 1b. Automatic Migration for License Model
-        if 'licenses' in table_names:
-            columns_licenses = [c['name'] for c in inspector.get_columns('licenses')]
-            if 'expires_at' not in columns_licenses:
-                try:
-                    db.execute(text("ALTER TABLE licenses ADD COLUMN expires_at TIMESTAMP"))
-                    db.commit()
-                except Exception:
-                    db.rollback()
-            if 'allow_download' not in columns_licenses:
-                try:
-                    db.execute(text("ALTER TABLE licenses ADD COLUMN allow_download BOOLEAN DEFAULT FALSE"))
-                    db.commit()
-                except Exception:
-                    db.rollback()
+        migration_statements = [
+            "ALTER TABLE users ADD COLUMN full_name VARCHAR",
+            "ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'parent'",
+            "ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE licenses ADD COLUMN expires_at TIMESTAMP",
+            "ALTER TABLE licenses ADD COLUMN allow_download BOOLEAN DEFAULT FALSE",
+        ]
+        for stmt in migration_statements:
+            try:
+                db.execute(text(stmt))
+                db.commit()
+            except Exception:
+                db.rollback()
 
-        # 2. Sync Admin User
+        # 3. Sync Admin User
         user = db.query(models.User).filter(models.User.username == "admin").first()
         admin_pass = os.getenv("ADMIN_PASSWORD")
-        
+        if not admin_pass:
+            admin_pass = "admin123"
+            
         if not user:
-            if not admin_pass:
-                admin_pass = "admin123"
             print("Creating initial admin user...")
             hashed = auth.get_password_hash(admin_pass)
             new_user = models.User(username="admin", full_name="Administrador", hashed_password=hashed, is_admin=True, role="teacher")
             db.add(new_user)
             db.commit()
-        elif admin_pass:
-            # Update password if env var changed
+        elif admin_pass != "admin123":
             user.hashed_password = auth.get_password_hash(admin_pass)
             db.commit()
             
@@ -96,3 +73,16 @@ def startup_db_setup():
         db.rollback()
     finally:
         db.close()
+
+@app.on_event("startup")
+def startup_db_setup():
+    run_db_migrations()
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": f"Error del sistema: {str(exc)}"
+    }, status_code=500)
