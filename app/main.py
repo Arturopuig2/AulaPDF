@@ -31,31 +31,46 @@ from sqlalchemy import text, inspect
 def startup_db_setup():
     db = database.SessionLocal()
     try:
-        # 1. Automatic Migration for User Model
         inspector = inspect(database.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
+        table_names = inspector.get_table_names()
         
-        if 'full_name' not in columns:
-            print("Migrating DB: Adding full_name column to users table")
-            db.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR"))
-        if 'role' not in columns:
-            print("Migrating DB: Adding role column to users table")
-            db.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'parent'"))
-        if 'has_active_license' not in columns:
-            print("Migrating DB: Adding has_active_license column to users table")
-            db.execute(text("ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT FALSE"))
+        # 1. Automatic Migration for User Model
+        if 'users' in table_names:
+            columns = [c['name'] for c in inspector.get_columns('users')]
+            if 'full_name' not in columns:
+                try:
+                    db.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            if 'role' not in columns:
+                try:
+                    db.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'parent'"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            if 'has_active_license' not in columns:
+                try:
+                    db.execute(text("ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT FALSE"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
         
         # 1b. Automatic Migration for License Model
-        if 'licenses' in inspector.get_table_names():
+        if 'licenses' in table_names:
             columns_licenses = [c['name'] for c in inspector.get_columns('licenses')]
             if 'expires_at' not in columns_licenses:
-                print("Migrating DB: Adding expires_at column to licenses table")
-                db.execute(text("ALTER TABLE licenses ADD COLUMN expires_at DATETIME"))
+                try:
+                    db.execute(text("ALTER TABLE licenses ADD COLUMN expires_at TIMESTAMP"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
             if 'allow_download' not in columns_licenses:
-                print("Migrating DB: Adding allow_download column to licenses table")
-                db.execute(text("ALTER TABLE licenses ADD COLUMN allow_download BOOLEAN DEFAULT FALSE"))
-                
-        db.commit()
+                try:
+                    db.execute(text("ALTER TABLE licenses ADD COLUMN allow_download BOOLEAN DEFAULT FALSE"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
 
         # 2. Sync Admin User
         user = db.query(models.User).filter(models.User.username == "admin").first()
