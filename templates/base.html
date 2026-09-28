@@ -397,7 +397,15 @@
                     <div id="user-menu-dropdown" class="user-menu-dropdown">
                         <div class="dropdown-section">
                             {% if request.session.get('has_active_license') or request.session.get('is_admin') %}
-                            <span class="license-badge" style="background: #dcfce7; color: #15803d;">Acceso Completo</span>
+                            <span class="license-badge" style="background: #dcfce7; color: #15803d;">
+                                {% if request.session.get('is_admin') %}
+                                Administrador
+                                {% elif request.session.get('can_download') %}
+                                Acceso + Descargas
+                                {% else %}
+                                Acceso Completo
+                                {% endif %}
+                            </span>
                                 {% if request.session.get('is_admin') %}
                                 <span class="license-expiration" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-top: 4px;">Permanente</span>
                                 {% elif request.session.get('license_expiration') %}

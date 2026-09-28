@@ -19,6 +19,7 @@ async def login(
     db: Session = Depends(database.get_db)
 ):
     ip = request.client.host
+    username = username.strip()
     
     # 1. Rate Check
     allowed, wait_time = auth.check_rate_limit(db, ip)
@@ -28,8 +29,12 @@ async def login(
             "error": f"Demasiados intentos. Inténtalo de nuevo en {wait_time} minutos."
         })
 
-    # 2. Verify User
-    user = db.query(models.User).filter(models.User.username == username).first()
+    # 2. Verify User (support case-insensitive matching and trim)
+    user = db.query(models.User).filter(
+        (models.User.username == username) | 
+        (models.User.username == username.lower())
+    ).first()
+    
     if not user or not auth.verify_password(password, user.hashed_password):
         # Register failure
         auth.register_failed_attempt(db, ip)
@@ -52,6 +57,10 @@ async def login(
         ).order_by(models.License.created_at.desc()).first()
         if active_lic and active_lic.expires_at:
             request.session["license_expiration"] = active_lic.expires_at.strftime("%d/%m/%Y")
+        can_dl = user.is_admin or (active_lic and active_lic.allow_download and (active_lic.expires_at is None or active_lic.expires_at > datetime.utcnow()))
+        request.session["can_download"] = bool(can_dl)
+    else:
+        request.session["can_download"] = bool(user.is_admin)
             
     return RedirectResponse(url="/", status_code=303)
 
@@ -74,6 +83,10 @@ async def register(
     confirm_password: str = Form(...),
     db: Session = Depends(database.get_db)
 ):
+    full_name = full_name.strip()
+    username = username.strip().lower()
+    confirm_username = confirm_username.strip().lower()
+
     # 0. Check Emails match
     if username != confirm_username:
         return templates.TemplateResponse("register.html", {
@@ -89,11 +102,14 @@ async def register(
         })
 
     # 2. Check if user already exists
-    existing_user = db.query(models.User).filter(models.User.username == username).first()
+    existing_user = db.query(models.User).filter(
+        (models.User.username == username) | 
+        (models.User.username == username.lower())
+    ).first()
     if existing_user:
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "El nombre de usuario ya está en uso"
+            "error": "El nombre de usuario o correo ya está en uso"
         })
 
     # 3. Create User
@@ -109,17 +125,21 @@ async def register(
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        # Optional: Auto-login
-        # request.session["user_id"] = new_user.id
-        # return RedirectResponse(url="/", status_code=303)
         
-        # Redirect to login with success message (implicitly via clean login page)
-        return RedirectResponse(url="/login", status_code=303)
+        # Auto-login upon registration for smooth access
+        request.session["user_id"] = new_user.id
+        request.session["is_admin"] = new_user.is_admin
+        request.session["full_name"] = new_user.full_name
+        request.session["has_active_license"] = False
+        request.session["can_download"] = False
+        
+        return RedirectResponse(url="/", status_code=303)
     except Exception as e:
         db.rollback()
+        print(f"Error during user registration: {e}")
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Error al crear el usuario. Inténtalo de nuevo."
+            "error": f"Error al crear el usuario. Inténtalo de nuevo."
         })
 
 @router.post("/change-password")

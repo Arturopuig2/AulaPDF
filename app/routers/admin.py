@@ -106,7 +106,11 @@ async def delete_pdf(pdf_id: int, request: Request, db: Session = Depends(databa
     return RedirectResponse(url="/admin", status_code=303)
 
 @router.post("/generate-license")
-async def generate_license(request: Request, db: Session = Depends(database.get_db)):
+async def generate_license(
+    request: Request,
+    allow_download: bool = Form(False),
+    db: Session = Depends(database.get_db)
+):
     user = get_current_user(request, db)
     if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -117,10 +121,23 @@ async def generate_license(request: Request, db: Session = Depends(database.get_
         new_code = auth.generate_user_license()
         
     # Save to DB
-    license_record = models.License(code=new_code)
+    license_record = models.License(code=new_code, allow_download=allow_download)
     db.add(license_record)
     db.commit()
     
+    return RedirectResponse(url="/admin", status_code=303)
+
+@router.post("/toggle-license-download/{license_id}")
+async def toggle_license_download(license_id: int, request: Request, db: Session = Depends(database.get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    license_record = db.query(models.License).filter(models.License.id == license_id).first()
+    if license_record:
+        license_record.allow_download = not license_record.allow_download
+        db.commit()
+        
     return RedirectResponse(url="/admin", status_code=303)
 
 @router.post("/delete-license/{license_id}")

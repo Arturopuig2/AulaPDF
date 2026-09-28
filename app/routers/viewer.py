@@ -34,13 +34,17 @@ async def home(
 
     # Sync session in case it is outdated
     request.session["has_active_license"] = user.has_active_license
-    if user.has_active_license and "license_expiration" not in request.session:
+    if user.has_active_license:
         active_lic = db.query(models.License).filter(
             models.License.user_id == user.id,
             models.License.is_used == True
         ).order_by(models.License.created_at.desc()).first()
         if active_lic and active_lic.expires_at:
             request.session["license_expiration"] = active_lic.expires_at.strftime("%d/%m/%Y")
+        can_dl = user.is_admin or (active_lic and active_lic.allow_download and (active_lic.expires_at is None or active_lic.expires_at > datetime.utcnow()))
+        request.session["can_download"] = bool(can_dl)
+    else:
+        request.session["can_download"] = bool(user.is_admin)
 
     query = db.query(models.PDF)
     
@@ -72,39 +76,62 @@ async def view_pdf_detail(request: Request, pdf_id: int, db: Session = Depends(d
         
     return templates.TemplateResponse("viewer.html", {"request": request, "pdf": pdf})
 
-@router.post("/pdf/{pdf_id}/download")
+import os
+
+@router.api_route("/pdf/{pdf_id}/download", methods=["GET", "POST"])
 async def download_pdf(
     pdf_id: int,
     request: Request,
-    access_code: str = Form(...),
+    access_code: str = Form(None),
     db: Session = Depends(database.get_db)
 ):
     user_id = request.session.get("user_id")
-    if not user_id or not db.query(models.User).filter(models.User.id == user_id).first():
+    if not user_id:
         raise HTTPException(status_code=401, detail="No autorizado")
-    access_code = access_code.strip()
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
+
     # Validate PDF existence
     pdf = db.query(models.PDF).filter(models.PDF.id == pdf_id).first()
     if not pdf:
-        raise HTTPException(status_code=404, detail="PDF not found")
+        raise HTTPException(status_code=404, detail="PDF no encontrado")
 
-    # Validate Access Code
-    # Code must belong to this specific PDF and not be expired/used?
-    # Requirement says "unique code to download". Usually one-time use or just valid key?
-    # Implied one-time or specific key. "Generación... para poder descargar".
-    # If it's a "ticket", it should be one-time. Let's assume Valid Match.
-    
-    code_record = db.query(models.AccessCode).filter(
-        models.AccessCode.code == access_code,
-        models.AccessCode.pdf_id == pdf_id
-    ).first()
-
-    if not code_record:
-         raise HTTPException(status_code=403, detail="Código inválido para este documento.")
-
-    # Return the file
     file_path = f"static/pdfs/{pdf.filename}"
-    return FileResponse(file_path, media_type='application/pdf', filename=f"{pdf.title}.pdf")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="El archivo PDF no se encuentra en el servidor.")
+
+    # Si es admin o tiene permiso de descarga por licencia activa
+    can_dl = user.is_admin or request.session.get("is_admin") or request.session.get("can_download")
+    if not can_dl and user.has_active_license:
+        active_lic = db.query(models.License).filter(
+            models.License.user_id == user.id,
+            models.License.is_used == True,
+            models.License.allow_download == True,
+            (models.License.expires_at == None) | (models.License.expires_at > datetime.utcnow())
+        ).first()
+        if active_lic:
+            can_dl = True
+            request.session["can_download"] = True
+
+    if can_dl:
+        return FileResponse(file_path, media_type='application/pdf', filename=f"{pdf.title}.pdf")
+
+    # Si no tiene permiso por licencia pero proporciona código de acceso específico
+    if access_code:
+        access_code = access_code.strip()
+        code_record = db.query(models.AccessCode).filter(
+            models.AccessCode.code == access_code,
+            models.AccessCode.pdf_id == pdf_id
+        ).first()
+
+        if code_record:
+            return FileResponse(file_path, media_type='application/pdf', filename=f"{pdf.title}.pdf")
+        else:
+            raise HTTPException(status_code=403, detail="Código inválido para este documento.")
+
+    raise HTTPException(status_code=403, detail="Tu licencia actual no incluye permiso de descarga para este documento.")
 
 @router.get("/pdf/{pdf_id}/inline")
 async def view_pdf_inline(pdf_id: int, request: Request, db: Session = Depends(database.get_db)):
@@ -117,7 +144,6 @@ async def view_pdf_inline(pdf_id: int, request: Request, db: Session = Depends(d
         raise HTTPException(status_code=404, detail="PDF not found")
         
     file_path = f"static/pdfs/{pdf.filename}"
-    # Content-Disposition inline allows browser to show it
     return FileResponse(file_path, media_type='application/pdf', content_disposition_type="inline")
 
 @router.post("/activate-license")
@@ -153,5 +179,7 @@ async def activate_license(
     
     request.session["has_active_license"] = True
     request.session["license_expiration"] = license_record.expires_at.strftime("%d/%m/%Y")
+    request.session["can_download"] = bool(user.is_admin or license_record.allow_download)
     
-    return {"message": "Licencia activada correctamente. Recargando..."}
+    msg = "Licencia activada correctamente con permisos de descarga." if license_record.allow_download else "Licencia activada correctamente."
+    return {"message": f"{msg} Recargando..."}

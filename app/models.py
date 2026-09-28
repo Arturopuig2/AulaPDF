@@ -52,6 +52,7 @@ class License(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String, unique=True, index=True)
     is_used = Column(Boolean, default=False)
+    allow_download = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

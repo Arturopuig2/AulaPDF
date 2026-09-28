@@ -49,9 +49,13 @@
 
         <!-- User Licenses Section -->
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
                 <h3 style="margin: 0; font-size: 1.3rem;">Licencias de Usuario</h3>
-                <form action="/admin/generate-license" method="post" style="margin: 0;">
+                <form action="/admin/generate-license" method="post" style="margin: 0; display: flex; align-items: center; gap: 0.75rem;">
+                    <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer; margin: 0; font-weight: 600; color: var(--text-main);">
+                        <input type="checkbox" name="allow_download" value="true" style="width: auto; margin: 0; cursor: pointer;">
+                        Permitir Descarga
+                    </label>
                     <button type="submit" class="btn btn-green" style="padding: 6px 14px; font-size: 0.85rem; text-transform: uppercase;">Generar</button>
                 </form>
             </div>
@@ -64,6 +68,7 @@
                         <tr style="border-bottom: 2px solid var(--border); text-align: left; font-weight: 600;">
                             <th style="padding: 0.5rem 0.25rem; color: var(--text-muted);">Licencia</th>
                             <th style="padding: 0.5rem 0.25rem; color: var(--text-muted);">Estado</th>
+                            <th style="padding: 0.5rem 0.25rem; color: var(--text-muted); text-align: center;">Descarga</th>
                             <th style="padding: 0.5rem 0.25rem; text-align: right; color: var(--text-muted);">Acción</th>
                         </tr>
                     </thead>
@@ -79,6 +84,19 @@
                                 {% else %}
                                 <span style="background: #f1f5f9; color: #64748b; font-size: 0.75rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Disponible</span>
                                 {% endif %}
+                            </td>
+                            <td style="padding: 0.6rem 0.25rem; text-align: center;">
+                                <form action="/admin/toggle-license-download/{{ lic.id }}" method="post" style="margin: 0; display: inline;">
+                                    {% if lic.allow_download %}
+                                    <button type="submit" title="Clic para desactivar permiso de descarga" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s;">
+                                        ✓ Sí
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" title="Clic para activar permiso de descarga" style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s;">
+                                        ✕ No
+                                    </button>
+                                    {% endif %}
+                                </form>
                             </td>
                             <td style="padding: 0.6rem 0.25rem; text-align: right;">
                                 <form action="/admin/delete-license/{{ lic.id }}" method="post"
@@ -119,11 +137,12 @@
                         <td style="padding: 0.8rem 0.5rem; font-weight: 600;">{{ pdf.title }}</td>
                         <td style="padding: 0.8rem 0.5rem;">{{ pdf.subject }}</td>
                         <td style="padding: 0.8rem 0.5rem; color: var(--text-muted);">{{ pdf.grade }}</td>
-                        <td style="padding: 0.8rem 0.5rem; text-align: right;">
+                        <td style="padding: 0.8rem 0.5rem; text-align: right; white-space: nowrap;">
+                            <a href="/pdf/{{ pdf.id }}/download" class="btn btn-green" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none; display: inline-block; margin-right: 0.5rem;" title="Descargar PDF">Descargar</a>
                             <form action="/admin/delete/{{ pdf.id }}" method="post"
-                                onsubmit="return confirm('¿Seguro que quieres borrar este PDF?');" style="margin: 0;">
+                                onsubmit="return confirm('¿Seguro que quieres borrar este PDF?');" style="margin: 0; display: inline;">
                                 <button type="submit"
-                                    style="color: #ef4444; background: none; border: none; cursor: pointer; text-decoration: underline;">Eliminar</button>
+                                    style="color: #ef4444; background: none; border: none; cursor: pointer; text-decoration: underline; font-size: 0.85rem;">Eliminar</button>
                             </form>
                         </td>
                     </tr>

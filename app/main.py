@@ -51,6 +51,9 @@ def startup_db_setup():
             if 'expires_at' not in columns_licenses:
                 print("Migrating DB: Adding expires_at column to licenses table")
                 db.execute(text("ALTER TABLE licenses ADD COLUMN expires_at DATETIME"))
+            if 'allow_download' not in columns_licenses:
+                print("Migrating DB: Adding allow_download column to licenses table")
+                db.execute(text("ALTER TABLE licenses ADD COLUMN allow_download BOOLEAN DEFAULT FALSE"))
                 
         db.commit()
 
