@@ -447,7 +447,7 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
             </button>
             {% if can_download or request.session.get("can_download") or request.session.get("is_admin") %}
-            <button class="control-btn enabled-download-btn" id="btn-download-bottom" type="button" onclick="downloadCurrentPages()" title="Descargar página(s) actual(es)">
+            <button class="control-btn enabled-download-btn" id="btn-download-bottom" type="button" onclick="downloadCurrentPages(event)" title="Descargar página(s) actual(es)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             </button>
             {% else %}
@@ -790,44 +790,40 @@
     }
 
     function getCurrentlyVisiblePages() {
-        if (!pageFlip) {
-            const val = parseInt(pageInput ? pageInput.value : 1) || 1;
-            return [val];
+        const total = (typeof totalPages !== 'undefined' && totalPages > 0) ? totalPages : 1;
+        
+        let currentPageNum = 1;
+        if (pageFlip && typeof pageFlip.getCurrentPageIndex === 'function') {
+            currentPageNum = pageFlip.getCurrentPageIndex() + 1;
+        } else if (pageInput) {
+            currentPageNum = parseInt(pageInput.value) || 1;
         }
 
-        const visiblePages = [];
-        const pages = document.querySelectorAll('.page');
-        pages.forEach(p => {
-            const parent = p.closest('.stPageFlip-page');
-            if (parent && (parent.classList.contains('-left') || parent.classList.contains('-right'))) {
-                const num = parseInt(p.id.replace('page-', ''));
-                if (!isNaN(num) && num > 0) visiblePages.push(num);
-            }
-        });
-
-        if (visiblePages.length > 0) {
-            visiblePages.sort((a, b) => a - b);
-            return visiblePages;
-        }
-
-        const idx = (typeof pageFlip.getCurrentPageIndex === 'function') ? pageFlip.getCurrentPageIndex() : 0;
-        const isPortrait = (typeof pageFlip.getOrientation === 'function' && pageFlip.getOrientation() === 'portrait') || 
+        const isPortrait = (pageFlip && typeof pageFlip.getOrientation === 'function' && pageFlip.getOrientation() === 'portrait') || 
                            (window.innerWidth <= 768 && window.innerHeight > window.innerWidth);
-        const maxP = (typeof totalPages !== 'undefined') ? totalPages : 1000;
 
+        // En modo vertical / página única: siempre 1 página
         if (isPortrait) {
-            return [Math.min(Math.max(idx + 1, 1), maxP)];
+            return [Math.min(Math.max(currentPageNum, 1), total)];
+        }
+
+        // En modo horizontal / doble página:
+        // Página 1 es la portada
+        if (currentPageNum === 1) {
+            return [1];
+        }
+
+        // Alinear al pliego par/impar (ej: 2 y 3, 4 y 5)
+        let leftPage = currentPageNum;
+        if (leftPage % 2 !== 0) {
+            leftPage = currentPageNum - 1;
+        }
+        let rightPage = leftPage + 1;
+
+        if (rightPage <= total) {
+            return [leftPage, rightPage];
         } else {
-            if (idx === 0) {
-                return [1];
-            }
-            const p1 = idx + 1;
-            const p2 = idx + 2;
-            if (p2 <= maxP) {
-                return [p1, p2];
-            } else {
-                return [p1];
-            }
+            return [leftPage];
         }
     }
 
@@ -839,10 +835,49 @@
         btn.setAttribute('title', label);
     }
 
-    function downloadCurrentPages() {
-        const pages = getCurrentlyVisiblePages();
-        const pagesParam = pages.join(',');
-        window.location.href = `/pdf/{{ pdf.id }}/download?pages=${pagesParam}`;
+    let isDownloading = false;
+
+    function downloadCurrentPages(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        if (isDownloading) return;
+        isDownloading = true;
+
+        const btn = document.getElementById('btn-download-bottom');
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.pointerEvents = 'none';
+        }
+
+        try {
+            const pages = getCurrentlyVisiblePages();
+            const pagesParam = pages.join(',');
+            const url = `/pdf/{{ pdf.id }}/download?pages=${encodeURIComponent(pagesParam)}`;
+
+            const link = document.createElement('a');
+            link.style.display = 'none';
+            link.href = url;
+            link.setAttribute('download', '');
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                if (link.parentNode) link.parentNode.removeChild(link);
+            }, 1000);
+        } catch (err) {
+            console.error('Download error:', err);
+        } finally {
+            setTimeout(() => {
+                isDownloading = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.pointerEvents = 'auto';
+                }
+            }, 2500);
+        }
     }
 
     function toggleFullscreen() {

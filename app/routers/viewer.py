@@ -140,7 +140,15 @@ async def view_pdf_detail(request: Request, pdf_id: int, db: Session = Depends(d
 import os
 import io
 import urllib.parse
+import unicodedata
 from pypdf import PdfReader, PdfWriter
+
+def clean_ascii_name(text: str) -> str:
+    normalized = unicodedata.normalize('NFKD', text)
+    ascii_bytes = normalized.encode('ascii', 'ignore')
+    ascii_str = ascii_bytes.decode('ascii')
+    clean = "".join(c for c in ascii_str if c.isalnum() or c in " _-").strip()
+    return clean or "documento"
 
 @router.api_route("/pdf/{pdf_id}/download", methods=["GET", "POST"])
 async def download_pdf(
@@ -219,18 +227,21 @@ async def download_pdf(
                         writer.write(buffer)
                         buffer.seek(0)
 
-                        clean_title = "".join(c for c in pdf.title if c.isalnum() or c in " _-").strip() or "documento"
-                        if len(extracted_pages) == 1:
-                            dl_filename = f"{clean_title}_pag_{extracted_pages[0]}.pdf"
-                        else:
-                            dl_filename = f"{clean_title}_pags_{extracted_pages[0]}_{extracted_pages[-1]}.pdf"
+                        ascii_title = clean_ascii_name(pdf.title)
+                        encoded_title = urllib.parse.quote(pdf.title.replace("/", "_"))
 
-                        encoded_filename = urllib.parse.quote(dl_filename)
+                        if len(extracted_pages) == 1:
+                            ascii_fn = f"{ascii_title}_pag_{extracted_pages[0]}.pdf"
+                            encoded_fn = f"{encoded_title}_pag_{extracted_pages[0]}.pdf"
+                        else:
+                            ascii_fn = f"{ascii_title}_pags_{extracted_pages[0]}_{extracted_pages[-1]}.pdf"
+                            encoded_fn = f"{encoded_title}_pags_{extracted_pages[0]}_{extracted_pages[-1]}.pdf"
+
                         return Response(
                             content=buffer.getvalue(),
                             media_type="application/pdf",
                             headers={
-                                "Content-Disposition": f'attachment; filename="{dl_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+                                "Content-Disposition": f'attachment; filename="{ascii_fn}"; filename*=UTF-8\'\'{encoded_fn}'
                             }
                         )
             except Exception as e:
