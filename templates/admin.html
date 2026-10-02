@@ -51,11 +51,7 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
                 <h3 style="margin: 0; font-size: 1.3rem;">Licencias de Usuario</h3>
-                <form action="/admin/generate-license" method="post" style="margin: 0; display: flex; align-items: center; gap: 0.75rem;">
-                    <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer; margin: 0; font-weight: 600; color: var(--text-main);">
-                        <input type="checkbox" name="allow_download" value="true" style="width: auto; margin: 0; cursor: pointer;">
-                        Permitir Descarga
-                    </label>
+                <form action="/admin/generate-license" method="post" style="margin: 0;">
                     <button type="submit" class="btn btn-green" style="padding: 6px 14px; font-size: 0.85rem; text-transform: uppercase;">Generar</button>
                 </form>
             </div>
