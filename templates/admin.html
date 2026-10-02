@@ -4,7 +4,7 @@
 <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
 
     <!-- Left Column (Upload and Licenses) -->
-    <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 1.5rem;">
+    <div style="flex: 1; min-width: 360px; display: flex; flex-direction: column; gap: 1.5rem;">
         
         <!-- Upload Section -->
         <div class="card">
@@ -58,13 +58,14 @@
             {% if not licenses %}
             <p class="text-muted" style="font-size: 0.95rem; margin: 0;">No hay licencias generadas aún.</p>
             {% else %}
-            <div style="max-height: 350px; overflow-y: auto;">
+            <div style="max-height: 350px; overflow-y: auto; overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
                     <thead>
                         <tr style="border-bottom: 2px solid var(--border); text-align: left; font-weight: 600;">
                             <th style="padding: 0.5rem 0.25rem; color: var(--text-muted);">Licencia</th>
                             <th style="padding: 0.5rem 0.25rem; color: var(--text-muted);">Estado</th>
                             <th style="padding: 0.5rem 0.25rem; color: var(--text-muted); text-align: center;">Descarga</th>
+                            <th style="padding: 0.5rem 0.25rem; color: var(--text-muted);">Usuario</th>
                             <th style="padding: 0.5rem 0.25rem; text-align: right; color: var(--text-muted);">Acción</th>
                         </tr>
                     </thead>
@@ -93,6 +94,13 @@
                                     </button>
                                     {% endif %}
                                 </form>
+                            </td>
+                            <td style="padding: 0.6rem 0.25rem; font-size: 0.85rem; color: var(--text-main); max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ lic.user.username if lic.user else '' }}">
+                                {% if lic.user %}
+                                <span style="font-weight: 500;">{{ lic.user.username }}</span>
+                                {% else %}
+                                <span style="color: #94a3b8;">—</span>
+                                {% endif %}
                             </td>
                             <td style="padding: 0.6rem 0.25rem; text-align: right;">
                                 <form action="/admin/delete-license/{{ lic.id }}" method="post"

@@ -31,7 +31,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(database.get_d
         return templates.TemplateResponse("login.html", {"request": request, "error": "Acceso restringido"})
 
     pdfs = db.query(models.PDF).order_by(models.PDF.uploaded_at.desc()).all()
-    licenses = db.query(models.License).order_by(models.License.created_at.desc()).all()
+    licenses = db.query(models.License).options(joinedload(models.License.user)).order_by(models.License.created_at.desc()).all()
     return templates.TemplateResponse("admin.html", {
         "request": request, 
         "pdfs": pdfs,
