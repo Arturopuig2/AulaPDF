@@ -53,8 +53,27 @@ class License(Base):
     code = Column(String, unique=True, index=True)
     is_used = Column(Boolean, default=False)
     allow_download = Column(Boolean, default=False)
+    is_reusable = Column(Boolean, default=False)
+    use_count = Column(Integer, default=0)
+    is_revoked = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     user = relationship("User", backref="user_licenses")
+    redemptions = relationship("LicenseRedemption", back_populates="license", cascade="all, delete-orphan")
+
+
+class LicenseRedemption(Base):
+    __tablename__ = "license_redemptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    license_id = Column(Integer, ForeignKey("licenses.id"), index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    redeemed_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    allow_download = Column(Boolean, default=False)
+    is_revoked = Column(Boolean, default=False)
+
+    license = relationship("License", back_populates="redemptions")
+    user = relationship("User", backref="license_redemptions")

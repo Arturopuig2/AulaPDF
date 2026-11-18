@@ -114,10 +114,70 @@ def reset_rate_limit(db: Session, ip_address: str):
         db.delete(record)
         db.commit()
 
-import string
+ALPHABET_UPPER_NO_CONFUSING = "ABCDEFGHJKMNPQRSTUVWXYZ"  # Excludes I, L, O
+DIGITS_NO_CONFUSING = "23456789"  # Excludes 0, 1
+
+
 def generate_user_license():
     """
-    Generates a secure user license code: 9 uppercase alphanumeric characters (excluding I, L, O).
+    Generates a 9-char code: combination of digits (2-9) and uppercase letters (excluding I, L, O).
+    No lowercase, no 0, 1, I, L, O. Guarantees at least one digit and one letter.
     """
-    allowed_chars = "".join(set(string.ascii_uppercase + string.digits) - {"I", "L", "O"})
-    return ''.join(secrets.choice(allowed_chars) for _ in range(9))
+    chars = DIGITS_NO_CONFUSING + ALPHABET_UPPER_NO_CONFUSING
+    result = [
+        secrets.choice(DIGITS_NO_CONFUSING),
+        secrets.choice(ALPHABET_UPPER_NO_CONFUSING),
+    ] + [secrets.choice(chars) for _ in range(7)]
+    secrets.SystemRandom().shuffle(result)
+    return ''.join(result)
+
+
+def get_user_access_status(db: Session, user: models.User):
+    """
+    Computes (has_active_license, can_download, exp_str) from both single-use licenses
+    and reusable license redemptions, and syncs user.has_active_license in DB.
+    """
+    if user.is_admin:
+        return True, True, None
+
+    has_active_license = False
+    can_download = False
+    exp_str = None
+
+    user_licenses = db.query(models.License).filter(
+        models.License.user_id == user.id,
+        models.License.is_used == True
+    ).order_by(models.License.created_at.desc()).all()
+
+    for lic in user_licenses:
+        if getattr(lic, "is_revoked", False):
+            continue
+        if check_license_validity(lic.expires_at):
+            has_active_license = True
+            if lic.allow_download:
+                can_download = True
+            if lic.expires_at and not exp_str:
+                exp_str = lic.expires_at.strftime("%d/%m/%Y")
+
+    user_redemptions = db.query(models.LicenseRedemption).filter(
+        models.LicenseRedemption.user_id == user.id
+    ).order_by(models.LicenseRedemption.redeemed_at.desc()).all()
+
+    for red in user_redemptions:
+        if getattr(red, "is_revoked", False):
+            continue
+        if check_license_validity(red.expires_at):
+            has_active_license = True
+            if red.allow_download:
+                can_download = True
+            if red.expires_at and not exp_str:
+                exp_str = red.expires_at.strftime("%d/%m/%Y")
+
+    if bool(user.has_active_license) != has_active_license:
+        user.has_active_license = has_active_license
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    return has_active_license, can_download, exp_str

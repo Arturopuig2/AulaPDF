@@ -42,6 +42,9 @@ def run_db_migrations():
             "ALTER TABLE users ADD COLUMN has_active_license BOOLEAN DEFAULT FALSE",
             "ALTER TABLE licenses ADD COLUMN expires_at TIMESTAMP",
             "ALTER TABLE licenses ADD COLUMN allow_download BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE licenses ADD COLUMN is_reusable BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE licenses ADD COLUMN use_count INTEGER DEFAULT 0",
+            "ALTER TABLE licenses ADD COLUMN is_revoked BOOLEAN DEFAULT FALSE",
         ]
         for stmt in migration_statements:
             try:

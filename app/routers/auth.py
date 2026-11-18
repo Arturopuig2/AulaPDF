@@ -51,32 +51,11 @@ async def login(
     request.session["has_active_license"] = user.has_active_license
     
     try:
-        user_licenses = db.query(models.License).filter(
-            models.License.user_id == user.id,
-            models.License.is_used == True
-        ).order_by(models.License.created_at.desc()).all()
-
-        has_active_license = user.is_admin or bool(user.has_active_license)
-        can_download = user.is_admin
-        exp_str = None
-
-        for lic in user_licenses:
-            if auth.check_license_validity(lic.expires_at):
-                has_active_license = True
-                if lic.allow_download:
-                    can_download = True
-                if lic.expires_at and not exp_str:
-                    exp_str = lic.expires_at.strftime("%d/%m/%Y")
-
+        has_active_license, can_download, exp_str = auth.get_user_access_status(db, user)
         if exp_str:
             request.session["license_expiration"] = exp_str
-
-        if has_active_license and not user.has_active_license and not user.is_admin:
-            user.has_active_license = True
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
+        else:
+            request.session.pop("license_expiration", None)
 
         request.session["has_active_license"] = bool(has_active_license)
         request.session["can_download"] = bool(can_download)

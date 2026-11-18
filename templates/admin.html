@@ -51,11 +51,18 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
                 <h3 style="margin: 0; font-size: 1.3rem;">Licencias de Usuario</h3>
-                <form action="/admin/generate-license" method="post" style="margin: 0;">
-                    <button type="submit" class="btn btn-green" style="padding: 6px 14px; font-size: 0.85rem; text-transform: uppercase;">Generar</button>
-                </form>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <form action="/admin/generate-license" method="post" style="margin: 0;">
+                        <input type="hidden" name="is_reusable" value="false">
+                        <button type="submit" class="btn btn-green" style="padding: 6px 14px; font-size: 0.85rem; text-transform: uppercase;">Generar</button>
+                    </form>
+                    <form action="/admin/generate-license" method="post" style="margin: 0;">
+                        <input type="hidden" name="is_reusable" value="true">
+                        <button type="submit" class="btn" style="background: #7c3aed; color: white; padding: 6px 14px; font-size: 0.85rem; text-transform: uppercase;">Generar Reutilizable</button>
+                    </form>
+                </div>
             </div>
-            {% if not licenses %}
+            {% if not license_rows %}
             <p class="text-muted" style="font-size: 0.95rem; margin: 0;">No hay licencias generadas aún.</p>
             {% else %}
             <div style="max-height: 350px; overflow-y: auto; overflow-x: auto;">
@@ -70,21 +77,26 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for lic in licenses %}
+                        {% for row in license_rows %}
                         <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 0.6rem 0.25rem;">
-                                <code style="background: #f1f5f9; padding: 3px 6px; border-radius: 4px; font-weight: 700; color: var(--primary); font-family: monospace; font-size: 0.95rem;">{{ lic.code }}</code>
+                            <td style="padding: 0.6rem 0.25rem; white-space: nowrap;">
+                                <code style="background: #f1f5f9; padding: 3px 6px; border-radius: 4px; font-weight: 700; color: var(--primary); font-family: monospace; font-size: 0.95rem;">{{ row.code }}</code>
+                                {% if row.is_reusable and row.row_type == 'reusable_code' %}
+                                <span style="background: #f3e8ff; color: #7c3aed; font-size: 0.7rem; font-weight: 700; padding: 2px 5px; border-radius: 4px; margin-left: 4px; text-transform: uppercase;">Reutilizable</span>
+                                {% endif %}
                             </td>
                             <td style="padding: 0.6rem 0.25rem;">
-                                {% if lic.is_used %}
+                                {% if row.status == 'USADA' %}
                                 <span style="background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Usada</span>
+                                {% elif row.status == 'REVOCADA' %}
+                                <span style="background: #fee2e2; color: #b91c1c; font-size: 0.75rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Revocada</span>
                                 {% else %}
                                 <span style="background: #f1f5f9; color: #64748b; font-size: 0.75rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">Disponible</span>
                                 {% endif %}
                             </td>
                             <td style="padding: 0.6rem 0.25rem; text-align: center;">
-                                <form action="/admin/toggle-license-download/{{ lic.id }}" method="post" style="margin: 0; display: inline;">
-                                    {% if lic.allow_download %}
+                                <form action="{{ row.toggle_download_url }}" method="post" style="margin: 0; display: inline;">
+                                    {% if row.allow_download %}
                                     <button type="submit" title="Clic para desactivar permiso de descarga" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.2s;">
                                         ✓ Sí
                                     </button>
@@ -95,19 +107,32 @@
                                     {% endif %}
                                 </form>
                             </td>
-                            <td style="padding: 0.6rem 0.25rem; font-size: 0.85rem; color: var(--text-main); max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ lic.user.username if lic.user else '' }}">
-                                {% if lic.user %}
-                                <span style="font-weight: 500;">{{ lic.user.username }}</span>
+                            <td style="padding: 0.6rem 0.25rem; font-size: 0.85rem; color: var(--text-main); max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ row.user_email if row.user_email else '' }}">
+                                {% if row.user_email %}
+                                <span style="font-weight: 500;{% if row.row_type == 'reusable_code' %} color: #7c3aed;{% endif %}">{{ row.user_email }}</span>
                                 {% else %}
                                 <span style="color: #94a3b8;">—</span>
                                 {% endif %}
                             </td>
                             <td style="padding: 0.6rem 0.25rem; text-align: right;">
-                                <form action="/admin/delete-license/{{ lic.id }}" method="post"
+                                {% if row.can_delete_permanently %}
+                                <form action="{{ row.action_url }}" method="post"
                                     onsubmit="return confirm('¿Seguro que quieres eliminar esta licencia?');" style="margin: 0; display: inline;">
                                     <button type="submit"
                                         style="color: #ef4444; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 0.85rem;">Eliminar</button>
                                 </form>
+                                {% elif row.is_revoked %}
+                                <form action="{{ row.action_url }}" method="post" style="margin: 0; display: inline;">
+                                    <button type="submit" title="Reactivar acceso"
+                                        style="color: #16a34a; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 0.85rem; font-weight: 600;">Reactivar</button>
+                                </form>
+                                {% else %}
+                                <form action="{{ row.action_url }}" method="post"
+                                    onsubmit="return confirm('¿Seguro que quieres revocar este acceso? Podrás reactivarlo después.');" style="margin: 0; display: inline;">
+                                    <button type="submit" title="Revocar acceso a los PDFs (reversible)"
+                                        style="color: #ef4444; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 0.85rem;">Eliminar</button>
+                                </form>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

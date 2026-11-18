@@ -36,32 +36,11 @@ async def home(
 
     # Sync session safely with database
     try:
-        user_licenses = db.query(models.License).filter(
-            models.License.user_id == user.id,
-            models.License.is_used == True
-        ).order_by(models.License.created_at.desc()).all()
-
-        has_active_license = user.is_admin or bool(user.has_active_license)
-        can_download = user.is_admin
-        exp_str = None
-
-        for lic in user_licenses:
-            if auth.check_license_validity(lic.expires_at):
-                has_active_license = True
-                if lic.allow_download:
-                    can_download = True
-                if lic.expires_at and not exp_str:
-                    exp_str = lic.expires_at.strftime("%d/%m/%Y")
-
+        has_active_license, can_download, exp_str = auth.get_user_access_status(db, user)
         if exp_str:
             request.session["license_expiration"] = exp_str
-
-        if has_active_license and not user.has_active_license and not user.is_admin:
-            user.has_active_license = True
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
+        else:
+            request.session.pop("license_expiration", None)
 
         request.session["has_active_license"] = bool(has_active_license)
         request.session["can_download"] = bool(can_download)
@@ -104,26 +83,15 @@ async def view_pdf_detail(request: Request, pdf_id: int, db: Session = Depends(d
         raise HTTPException(status_code=404, detail="PDF not found")
 
     # Evaluate active licenses and download permission dynamically
-    has_active_license = user.is_admin or bool(user.has_active_license)
+    has_active_license = user.is_admin
     can_download = user.is_admin
 
     try:
-        user_licenses = db.query(models.License).filter(
-            models.License.user_id == user.id,
-            models.License.is_used == True
-        ).all()
-        for lic in user_licenses:
-            if auth.check_license_validity(lic.expires_at):
-                has_active_license = True
-                if lic.allow_download:
-                    can_download = True
-
-        if has_active_license and not user.has_active_license and not user.is_admin:
-            user.has_active_license = True
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
+        has_active_license, can_download, exp_str = auth.get_user_access_status(db, user)
+        if exp_str:
+            request.session["license_expiration"] = exp_str
+        else:
+            request.session.pop("license_expiration", None)
 
         request.session["has_active_license"] = bool(has_active_license)
         request.session["can_download"] = bool(can_download)
@@ -178,19 +146,10 @@ async def download_pdf(
     if not pages:
         pages = request.query_params.get("pages")
 
-    # Si es admin o tiene permiso de descarga por licencia activa
-    can_dl = user.is_admin or request.session.get("is_admin") or request.session.get("can_download")
-    if not can_dl and user.has_active_license:
-        active_lics = db.query(models.License).filter(
-            models.License.user_id == user.id,
-            models.License.is_used == True,
-            models.License.allow_download == True
-        ).all()
-        for lic in active_lics:
-            if check_license_validity(lic.expires_at):
-                can_dl = True
-                request.session["can_download"] = True
-                break
+    # Si es admin o tiene permiso de descarga por licencia activa (normal o reutilizable)
+    has_active, can_dl, _ = auth.get_user_access_status(db, user)
+    request.session["has_active_license"] = bool(has_active)
+    request.session["can_download"] = bool(can_dl)
 
     # Si no tiene permiso por licencia pero proporciona código de acceso específico
     code_record = None
@@ -287,20 +246,50 @@ async def activate_license(
     license_record = db.query(models.License).filter(models.License.code == license_code).first()
     if not license_record:
         raise HTTPException(status_code=404, detail="El código de licencia no es válido.")
-        
-    if license_record.is_used:
-        raise HTTPException(status_code=400, detail="Esta licencia ya ha sido utilizada.")
-        
-    # Activate license
-    user.has_active_license = True
-    license_record.is_used = True
-    license_record.user_id = user.id
-    license_record.expires_at = datetime.utcnow() + timedelta(days=365)
-    db.commit()
-    
-    request.session["has_active_license"] = True
-    request.session["license_expiration"] = license_record.expires_at.strftime("%d/%m/%Y")
-    request.session["can_download"] = bool(user.is_admin or license_record.allow_download)
-    
-    msg = "Licencia activada correctamente con permisos de descarga." if license_record.allow_download else "Licencia activada correctamente."
+
+    if getattr(license_record, "is_revoked", False):
+        raise HTTPException(status_code=403, detail="Esta licencia ha sido desactivada.")
+
+    now = datetime.utcnow()
+    expires_at = now + timedelta(days=365)
+
+    if getattr(license_record, "is_reusable", False):
+        existing = db.query(models.LicenseRedemption).filter(
+            models.LicenseRedemption.license_id == license_record.id,
+            models.LicenseRedemption.user_id == user.id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Ya has utilizado este código anteriormente en esta cuenta.")
+
+        redemption = models.LicenseRedemption(
+            license_id=license_record.id,
+            user_id=user.id,
+            redeemed_at=now,
+            expires_at=expires_at,
+            allow_download=bool(license_record.allow_download),
+            is_revoked=False
+        )
+        db.add(redemption)
+        license_record.use_count = (license_record.use_count or 0) + 1
+        user.has_active_license = True
+        db.commit()
+    else:
+        if license_record.is_used:
+            raise HTTPException(status_code=400, detail="Esta licencia ya ha sido utilizada.")
+
+        # Activate single-use license
+        user.has_active_license = True
+        license_record.is_used = True
+        license_record.user_id = user.id
+        license_record.expires_at = expires_at
+        license_record.use_count = 1
+        db.commit()
+
+    has_active, can_dl, exp_str = auth.get_user_access_status(db, user)
+    request.session["has_active_license"] = bool(has_active)
+    if exp_str:
+        request.session["license_expiration"] = exp_str
+    request.session["can_download"] = bool(can_dl)
+
+    msg = "Licencia activada correctamente con permisos de descarga." if can_dl else "Licencia activada correctamente."
     return {"message": f"{msg} Recargando..."}
