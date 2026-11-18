@@ -416,9 +416,9 @@
         </div>
 
         {% if not (has_active_license or request.session.get('has_active_license') or request.session.get('is_admin')) %}
-        <div class="preview-badge" style="background: #fee2e2; color: #b91c1c; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid #fca5a5; margin-left: 10px;">
+        <div class="preview-badge" style="background: #dcfce7; color: #15803d; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid #86efac; margin-left: 10px;">
             <span>⚠️ Vista previa (12 págs.)</span>
-            <button onclick="openLicenseModal()" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s; text-transform: uppercase;">Activar</button>
+            <button onclick="openLicenseModal()" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s; text-transform: uppercase;">Activar</button>
         </div>
         {% endif %}
 
